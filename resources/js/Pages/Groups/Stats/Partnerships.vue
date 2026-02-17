@@ -1,0 +1,37 @@
+<script setup>
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PartnershipTable from '@/Components/Stats/PartnershipTable.vue';
+import TimeRangeSelector from '@/Components/Stats/TimeRangeSelector.vue';
+import { Head, Link } from '@inertiajs/vue3';
+
+defineProps({
+    group: Object,
+    partnerships: Array,
+    range: String,
+    canViewAllTime: Boolean,
+});
+</script>
+
+<template>
+    <Head :title="`${group.name} - Partnerships`" />
+
+    <AuthenticatedLayout :back-href="route('groups.stats', group.slug)">
+        <template #header>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">{{ group.name }} - Partnerships</h2>
+        </template>
+
+        <div class="py-12">
+            <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+                <div class="overflow-hidden bg-white shadow-sm sm:rounded-lg">
+                    <div class="p-6">
+                        <div class="mb-4 flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900">Doubles Partnerships</h3>
+                            <TimeRangeSelector :modelValue="range" :canViewAllTime="canViewAllTime" />
+                        </div>
+                        <PartnershipTable :partnerships="partnerships" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </AuthenticatedLayout>
+</template>
