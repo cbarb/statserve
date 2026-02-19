@@ -7,8 +7,13 @@ use App\Models\GameMatch;
 use App\Models\Group;
 use App\Models\GroupBoost;
 use App\Models\User;
+use App\Notifications\GroupBoostCancelledNotification;
+use App\Notifications\GroupBoostConfirmedNotification;
+use App\Notifications\ProSubscriptionCancelledNotification;
+use App\Notifications\ProSubscriptionConfirmedNotification;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 class SubscriptionService
 {
@@ -102,6 +107,7 @@ class SubscriptionService
     {
         if ($user->subscribed('pro')) {
             $user->subscription('pro')->cancel();
+            $user->notify(new ProSubscriptionCancelledNotification);
         }
     }
 
@@ -111,6 +117,7 @@ class SubscriptionService
 
         if ($user->subscribed($subscriptionName)) {
             $user->subscription($subscriptionName)->cancel();
+            $user->notify(new GroupBoostCancelledNotification($group));
         }
     }
 
@@ -138,6 +145,12 @@ class SubscriptionService
 
         if (isset($metadata['group_id'])) {
             $this->activateBoost($subscription, $metadata);
+        } else {
+            $stripeCustomerId = $subscription['customer'] ?? null;
+            $user = User::where('stripe_id', $stripeCustomerId)->first();
+            if ($user) {
+                $user->notify(new ProSubscriptionConfirmedNotification);
+            }
         }
 
         Log::info('Subscription created', ['subscription_id' => $subscription['id'] ?? null]);
@@ -187,5 +200,10 @@ class SubscriptionService
                 'ends_at' => null,
             ],
         );
+
+        $group = Group::find($groupId);
+        if ($group) {
+            Notification::send($group->members, new GroupBoostConfirmedNotification($group, $user));
+        }
     }
 }

@@ -43,7 +43,7 @@ import ApplicationLogoDark from '@/Components/ApplicationLogoDark.vue';
     </nav>
 
     <!-- Header -->
-    <section class="bg-gray-900 pb-28 pt-16">
+    <section class="bg-gray-900 pb-36 pt-16">
         <div class="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
             <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
                 Simple, transparent pricing
@@ -55,12 +55,12 @@ import ApplicationLogoDark from '@/Components/ApplicationLogoDark.vue';
     </section>
 
     <!-- Pricing Cards -->
-    <section class="-mt-16 flex-1 pb-20">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section class="-mt-20 flex-1 pb-20">
+        <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
             <div class="grid gap-8 lg:grid-cols-3">
 
                 <!-- Free -->
-                <div class="flex flex-col rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+                <div class="flex flex-col rounded-2xl border border-gray-200 bg-white pt-12 pb-8 px-8 shadow-sm">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900">Free</h3>
                         <p class="mt-1 text-sm text-gray-500">For casual groups getting started</p>
@@ -102,20 +102,22 @@ import ApplicationLogoDark from '@/Components/ApplicationLogoDark.vue';
                 </div>
 
                 <!-- Pro -->
-                <div class="relative flex flex-col rounded-2xl border-2 border-emerald-500 bg-white px-8 pb-8 pt-10 shadow-lg">
-                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                        <span class="rounded-full bg-emerald-500 px-4 py-1 text-xs font-bold uppercase tracking-wide text-white">
+                <div class=" flex flex-col rounded-2xl border-2 border-emerald-500 bg-white px-8 pb-10 pt-12 shadow-lg">
+                    <!-- <div class="">
+                        <span class="rounded-full bg-emerald-500 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-white">
                             Personal
                         </span>
-                    </div>
+                    </div> -->
                     <div>
                         <h3 class="text-lg font-semibold text-gray-900">Pro</h3>
                         <p class="mt-1 text-sm text-gray-500">For players who never want to stop</p>
                     </div>
                     <div class="mt-6">
-                        <span class="text-4xl font-extrabold text-gray-900">$5</span>
-                        <span class="text-sm text-gray-500">/mo</span>
-                        <span class="ml-2 text-sm text-gray-400">billed annually</span>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-4xl font-extrabold text-gray-900">$5</span>
+                            <span class="text-sm text-gray-500">/mo</span>
+                        </div>
+                        <span class="mt-1 block text-sm text-gray-400">billed annually</span>
                     </div>
                     <p class="mt-1 text-sm font-medium text-emerald-600">Save $24/yr vs monthly ($7/mo)</p>
                     <ul class="mt-8 flex-1 space-y-3">
@@ -151,20 +153,22 @@ import ApplicationLogoDark from '@/Components/ApplicationLogoDark.vue';
                 </div>
 
                 <!-- Group Boost -->
-                <div class="relative flex flex-col rounded-2xl border-2 border-amber-400 bg-white px-8 pb-8 pt-10 shadow-lg">
-                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                        <span class="whitespace-nowrap rounded-full bg-amber-400 px-4 py-1 text-xs font-bold uppercase tracking-wide text-gray-900">
+                <div class=" py-8 flex flex-col rounded-2xl border-2 border-amber-400 bg-white px-8 pb-10 pt-12 shadow-lg">
+                    <!-- <div class="absolute -top-4 left-1/2 -translate-x-1/2">
+                        <span class="whitespace-nowrap rounded-full bg-amber-400 px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-gray-900">
                             Group Boost
                         </span>
-                    </div>
+                    </div> -->
                     <div>
-                        <h3 class="whitespace-nowrap text-lg font-semibold text-gray-900">Group Boost</h3>
+                        <h3 class="text-lg font-semibold text-gray-900">Group Boost</h3>
                         <p class="mt-1 text-sm text-gray-500">Unlock a group for everyone in it</p>
                     </div>
                     <div class="mt-6">
-                        <span class="text-4xl font-extrabold text-gray-900">$10.83</span>
-                        <span class="text-sm text-gray-500">/mo</span>
-                        <span class="ml-2 text-sm text-gray-400">billed annually</span>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-4xl font-extrabold text-gray-900">$10.83</span>
+                            <span class="text-sm text-gray-500">/mo</span>
+                        </div>
+                        <span class="mt-1 block text-sm text-gray-400">billed annually</span>
                     </div>
                     <p class="mt-1 text-sm font-medium text-amber-600">Save $50/yr vs monthly ($15/mo)</p>
                     <ul class="mt-8 flex-1 space-y-3">

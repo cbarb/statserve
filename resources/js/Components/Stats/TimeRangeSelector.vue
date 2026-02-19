@@ -33,13 +33,13 @@ const select = (range) => {
 </script>
 
 <template>
-    <div class="inline-flex rounded-md shadow-sm">
+    <div class="inline-flex w-full flex-wrap rounded-md shadow-sm sm:w-auto sm:flex-nowrap">
         <button
             v-for="(r, i) in ranges"
             :key="r.value"
             @click="select(r.value)"
             :class="[
-                'px-3 py-1.5 text-sm font-medium',
+                'flex-1 whitespace-nowrap px-2 py-1.5 text-xs font-medium sm:flex-none sm:px-3 sm:text-sm',
                 r.value === 'all' && !canViewAllTime
                     ? 'bg-gray-100 text-gray-400 cursor-pointer'
                     : modelValue === r.value

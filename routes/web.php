@@ -8,6 +8,8 @@ use App\Http\Controllers\GroupMemberController;
 use App\Http\Controllers\PlayController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StatsController;
+use App\Http\Controllers\TournamentController;
+use App\Http\Controllers\UserSearchController;
 use App\Services\BadgeService;
 use App\Services\StatsService;
 use App\Services\XpService;
@@ -67,6 +69,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
+    // User search
+    Route::get('/users/search', [UserSearchController::class, 'search'])->name('users.search');
+
     // Group CRUD
     Route::get('/groups', [GroupController::class, 'index'])->name('groups.index');
     Route::get('/groups/create', [GroupController::class, 'create'])->name('groups.create');
@@ -102,6 +107,16 @@ Route::middleware('auth')->group(function () {
     Route::delete('/billing/cancel-boost/{group}', [BillingController::class, 'cancelBoost'])->name('billing.cancel-boost');
     Route::post('/billing/resume-pro', [BillingController::class, 'resumePro'])->name('billing.resume-pro');
     Route::post('/billing/resume-boost/{group}', [BillingController::class, 'resumeBoost'])->name('billing.resume-boost');
+
+    // Tournaments
+    Route::get('/tournaments', [TournamentController::class, 'index'])->name('tournaments.index');
+    Route::get('/tournaments/create', [TournamentController::class, 'create'])->name('tournaments.create');
+    Route::post('/tournaments', [TournamentController::class, 'store'])->name('tournaments.store');
+    Route::get('/tournaments/{tournament}', [TournamentController::class, 'show'])->name('tournaments.show');
+    Route::post('/tournaments/{tournament}/join', [TournamentController::class, 'join'])->name('tournaments.join');
+    Route::delete('/tournaments/{tournament}/leave', [TournamentController::class, 'leave'])->name('tournaments.leave');
+    Route::post('/tournaments/{tournament}/start', [TournamentController::class, 'start'])->name('tournaments.start');
+    Route::post('/tournaments/{tournament}/rounds/{round}/winner', [TournamentController::class, 'setWinner'])->name('tournaments.set-winner');
 
     // Badges
     Route::get('/badges', [BadgeController::class, 'index'])->name('badges.index');

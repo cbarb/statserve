@@ -67,7 +67,7 @@ const formatDiff = (val) => {
                         v-for="col in columns"
                         :key="col.key"
                         :class="[
-                            'px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500',
+                            'px-2 py-2 text-left text-[10px] font-medium uppercase tracking-wider text-gray-500 sm:px-3 sm:text-xs',
                             col.sortable ? 'cursor-pointer select-none hover:text-gray-700' : '',
                         ]"
                         @click="col.sortable && toggleSort(col.key)"
@@ -85,37 +85,39 @@ const formatDiff = (val) => {
                     :key="row.user_id"
                     :class="row.user_id === currentUserId ? 'bg-indigo-50' : 'hover:bg-gray-50'"
                 >
-                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ row.rank }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">
-                        <Link
-                            v-if="groupSlug"
-                            :href="route('groups.stats.player', [groupSlug, row.user_id])"
-                            class="text-indigo-600 hover:text-indigo-500"
-                        >
-                            {{ row.name }}
-                        </Link>
-                        <span v-else>{{ row.name }}</span>
-                        <span
-                            v-if="row.level"
-                            class="ml-1.5 inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-600"
-                        >
-                            Lv. {{ row.level }}
-                        </span>
+                    <td class="whitespace-nowrap px-2 py-2 text-gray-500 sm:px-3">{{ row.rank }}</td>
+                    <td class="px-2 py-2 font-medium text-gray-900 sm:px-3">
+                        <div class="gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
+                            <Link
+                                v-if="groupSlug"
+                                :href="route('groups.stats.player', [groupSlug, row.user_id])"
+                                class="truncate text-indigo-600 hover:text-indigo-500"
+                            >
+                                {{ row.name }}
+                            </Link>
+                            <span v-else class="truncate">{{ row.name }}</span> <br>
+                            <span
+                                v-if="row.level"
+                                class="inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600"
+                            >
+                                Lv. {{ row.level }}
+                            </span>
+                        </div>
                     </td>
-                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ row.games }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ row.wins }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ row.losses }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">{{ row.win_rate }}%</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ formatStreak(row) }}</td>
+                    <td class="whitespace-nowrap px-2 py-2 text-gray-500 sm:px-3">{{ row.games }}</td>
+                    <td class="whitespace-nowrap px-2 py-2 text-gray-500 sm:px-3">{{ row.wins }}</td>
+                    <td class="whitespace-nowrap px-2 py-2 text-gray-500 sm:px-3">{{ row.losses }}</td>
+                    <td class="whitespace-nowrap px-2 py-2 font-medium text-gray-900 sm:px-3">{{ row.win_rate }}%</td>
+                    <td class="whitespace-nowrap px-2 py-2 text-gray-500 sm:px-3">{{ formatStreak(row) }}</td>
                     <td :class="[
-                        'whitespace-nowrap px-3 py-2 text-sm font-medium',
+                        'whitespace-nowrap px-2 py-2 font-medium sm:px-3',
                         row.point_diff > 0 ? 'text-green-600' : row.point_diff < 0 ? 'text-red-600' : 'text-gray-500',
                     ]">
                         {{ formatDiff(row.point_diff) }}
                     </td>
                 </tr>
                 <tr v-if="!sortedRows.length">
-                    <td colspan="8" class="px-3 py-6 text-center text-sm text-gray-500">No matches played yet.</td>
+                    <td colspan="8" class="px-2 py-6 text-center text-gray-500 sm:px-3">No matches played yet.</td>
                 </tr>
             </tbody>
         </table>

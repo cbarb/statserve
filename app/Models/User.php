@@ -106,4 +106,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(GroupBoost::class);
     }
+
+    public function tournamentEntries(): HasMany
+    {
+        return $this->hasMany(TournamentEntry::class);
+    }
 }

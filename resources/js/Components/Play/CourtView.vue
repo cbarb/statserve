@@ -136,8 +136,8 @@ function onScoreInput(team, e) {
               Row 5: Team 2 quadrants (player area)
               Row 6: Team label
         -->
-        <div class="absolute inset-0 grid"
-             style="grid-template-rows: 4% 30% 14% 14% 30% 4%; padding: 2.2% 10%;">
+        <div class="absolute mt-[22px] inset-0 grid"
+             style="grid-template-rows: 4% 31% 13% 13% 31% 4%; padding: 2.2% 10%;">
 
             <!-- Row 1: Team 1 label -->
             <div class="flex items-center justify-center">
@@ -145,12 +145,12 @@ function onScoreInput(team, e) {
             </div>
 
             <!-- Row 2: Team 1 player quadrants -->
-            <div v-if="!isDoubles" class="flex items-center justify-center">
+            <div v-if="!isDoubles" class="flex items-center justify-center px-2">
                 <!-- Singles: single player card centered -->
                 <button
                     type="button"
                     @click="handleSlotClick(1, 'solo')"
-                    class="flex flex-col items-center justify-center rounded-xl px-4 py-3 transition"
+                    class="flex max-w-[100px] flex-col items-center justify-center rounded-xl px-6 py-4 transition"
                     :class="getSlotPlayer(1, 'solo')
                         ? 'bg-blue-500/90 text-white shadow-lg shadow-blue-900/30'
                         : editable
@@ -159,7 +159,7 @@ function onScoreInput(team, e) {
                 >
                     <template v-if="getSlotPlayer(1, 'solo')">
                         <span class="text-3xl font-bold leading-none">{{ getPlayerName(getSlotPlayer(1, 'solo').user_id).charAt(0).toUpperCase() }}</span>
-                        <span class="mt-1.5 max-w-[100px] truncate text-sm font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(1, 'solo').user_id) }}</span>
+                        <span class="mt-1.5 w-full truncate text-sm font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(1, 'solo').user_id) }}</span>
                     </template>
                     <template v-else>
                         <span class="text-3xl leading-none">+</span>
@@ -167,13 +167,13 @@ function onScoreInput(team, e) {
                     </template>
                 </button>
             </div>
-            <div v-else class="grid grid-cols-2 gap-1">
+            <div v-else class="grid grid-cols-2 gap-2 px-2">
                 <!-- Doubles: left and right quadrants -->
                 <div v-for="pos in ['left', 'right']" :key="'t1-' + pos" class="flex items-center justify-center">
                     <button
                         type="button"
                         @click="handleSlotClick(1, pos)"
-                        class="flex flex-col items-center justify-center rounded-xl px-3 py-2 transition"
+                        class="flex w-full max-w-[100px] flex-col items-center justify-center rounded-xl px-4 py-3 transition"
                         :class="getSlotPlayer(1, pos)
                             ? 'bg-blue-500/90 text-white shadow-lg shadow-blue-900/30'
                             : editable
@@ -182,7 +182,7 @@ function onScoreInput(team, e) {
                     >
                         <template v-if="getSlotPlayer(1, pos)">
                             <span class="text-2xl font-bold leading-none">{{ getPlayerName(getSlotPlayer(1, pos).user_id).charAt(0).toUpperCase() }}</span>
-                            <span class="mt-1 max-w-[80px] truncate text-xs font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(1, pos).user_id) }}</span>
+                            <span class="mt-1 w-full truncate text-xs font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(1, pos).user_id) }}</span>
                         </template>
                         <template v-else>
                             <span class="text-2xl leading-none">+</span>
@@ -195,39 +195,39 @@ function onScoreInput(team, e) {
             <!-- Row 3: Team 1 Kitchen / Score -->
             <div class="flex items-center justify-center">
                 <template v-if="scoring">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5">
                         <button type="button" @click="decrementScore(1)"
-                            class="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-lg font-bold text-white hover:bg-white/30">-</button>
+                            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-base font-bold text-white hover:bg-white/30">-</button>
                         <input type="number" :value="team1Score" @input="onScoreInput(1, $event)" min="0" max="99"
-                            class="h-14 w-16 rounded-lg border-2 border-blue-300/50 bg-white/95 text-center text-3xl font-bold text-blue-700 shadow-lg" />
+                            class="h-12 w-20 rounded-lg border-2 border-blue-300/50 bg-white/95 text-center text-2xl font-bold text-blue-700 shadow-lg" />
                         <button type="button" @click="incrementScore(1)"
-                            class="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-lg font-bold text-white hover:bg-white/30">+</button>
+                            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-base font-bold text-white hover:bg-white/30">+</button>
                     </div>
                 </template>
-                <span v-else class="text-xs font-medium uppercase tracking-wider text-white/30">Kitchen</span>
+                <span v-else class="text-xs font-medium uppercase tracking-wider text-white/50">Kitchen</span>
             </div>
 
             <!-- Row 4: Team 2 Kitchen / Score -->
             <div class="flex items-center justify-center">
                 <template v-if="scoring">
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5">
                         <button type="button" @click="decrementScore(2)"
-                            class="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-lg font-bold text-white hover:bg-white/30">-</button>
+                            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-base font-bold text-white hover:bg-white/30">-</button>
                         <input type="number" :value="team2Score" @input="onScoreInput(2, $event)" min="0" max="99"
-                            class="h-14 w-16 rounded-lg border-2 border-red-300/50 bg-white/95 text-center text-3xl font-bold text-red-700 shadow-lg" />
+                            class="h-12 w-20 rounded-lg border-2 border-red-300/50 bg-white/95 text-center text-2xl font-bold text-red-700 shadow-lg" />
                         <button type="button" @click="incrementScore(2)"
-                            class="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-lg font-bold text-white hover:bg-white/30">+</button>
+                            class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/20 text-base font-bold text-white hover:bg-white/30">+</button>
                     </div>
                 </template>
-                <span v-else class="text-xs font-medium uppercase tracking-wider text-white/30">Kitchen</span>
+                <span v-else class="text-xs font-medium uppercase tracking-wider text-white/50">Kitchen</span>
             </div>
 
             <!-- Row 5: Team 2 player quadrants -->
-            <div v-if="!isDoubles" class="flex items-center justify-center">
+            <div v-if="!isDoubles" class="flex items-center justify-center px-2">
                 <button
                     type="button"
                     @click="handleSlotClick(2, 'solo')"
-                    class="flex flex-col items-center justify-center rounded-xl px-4 py-3 transition"
+                    class="flex max-w-[100px] flex-col items-center justify-center rounded-xl px-6 py-4 transition"
                     :class="getSlotPlayer(2, 'solo')
                         ? 'bg-red-500/90 text-white shadow-lg shadow-red-900/30'
                         : editable
@@ -236,7 +236,7 @@ function onScoreInput(team, e) {
                 >
                     <template v-if="getSlotPlayer(2, 'solo')">
                         <span class="text-3xl font-bold leading-none">{{ getPlayerName(getSlotPlayer(2, 'solo').user_id).charAt(0).toUpperCase() }}</span>
-                        <span class="mt-1.5 max-w-[100px] truncate text-sm font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(2, 'solo').user_id) }}</span>
+                        <span class="mt-1.5 w-full truncate text-sm font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(2, 'solo').user_id) }}</span>
                     </template>
                     <template v-else>
                         <span class="text-3xl leading-none">+</span>
@@ -244,12 +244,12 @@ function onScoreInput(team, e) {
                     </template>
                 </button>
             </div>
-            <div v-else class="grid grid-cols-2 gap-1">
+            <div v-else class="grid grid-cols-2 gap-2 px-2">
                 <div v-for="pos in ['left', 'right']" :key="'t2-' + pos" class="flex items-center justify-center">
                     <button
                         type="button"
                         @click="handleSlotClick(2, pos)"
-                        class="flex flex-col items-center justify-center rounded-xl px-3 py-2 transition"
+                        class="flex w-full max-w-[100px] flex-col items-center justify-center rounded-xl px-4 py-3 transition"
                         :class="getSlotPlayer(2, pos)
                             ? 'bg-red-500/90 text-white shadow-lg shadow-red-900/30'
                             : editable
@@ -258,7 +258,7 @@ function onScoreInput(team, e) {
                     >
                         <template v-if="getSlotPlayer(2, pos)">
                             <span class="text-2xl font-bold leading-none">{{ getPlayerName(getSlotPlayer(2, pos).user_id).charAt(0).toUpperCase() }}</span>
-                            <span class="mt-1 max-w-[80px] truncate text-xs font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(2, pos).user_id) }}</span>
+                            <span class="mt-1 w-full truncate text-xs font-semibold leading-tight opacity-90">{{ getPlayerName(getSlotPlayer(2, pos).user_id) }}</span>
                         </template>
                         <template v-else>
                             <span class="text-2xl leading-none">+</span>
@@ -275,7 +275,7 @@ function onScoreInput(team, e) {
         </div>
 
         <!-- Player picker overlay -->
-        <div v-if="pickingSlot" class="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-black/40" @click.self="closePicker">
+        <div v-if="pickingSlot" class="absolute mt-[22px] inset-0 z-10 flex items-center justify-center rounded-lg bg-black/40" @click.self="closePicker">
             <div class="w-52 rounded-lg bg-white p-3 shadow-xl">
                 <p class="mb-2 text-sm font-medium text-gray-700">Select Player</p>
                 <div class="max-h-48 space-y-1 overflow-y-auto">

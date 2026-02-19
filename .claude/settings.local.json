@@ -4,7 +4,12 @@
       "Bash(composer require:*)",
       "Bash(php artisan test:*)",
       "Bash(php artisan:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(python3:*)",
+      "Bash(./vendor/bin/sail artisan queue:work:*)",
+      "Bash(./vendor/bin/sail artisan tinker:*)",
+      "Bash(./vendor/bin/sail artisan:*)",
+      "Bash(php -l:*)"
     ]
   }
 }

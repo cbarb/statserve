@@ -53,6 +53,12 @@ const showingNavigationDropdown = ref(false);
                                     Groups
                                 </NavLink>
                                 <NavLink
+                                    :href="route('tournaments.index')"
+                                    :active="route().current('tournaments.*')"
+                                >
+                                    Tournaments
+                                </NavLink>
+                                <NavLink
                                     :href="route('badges.index')"
                                     :active="route().current('badges.*')"
                                 >
@@ -181,6 +187,12 @@ const showingNavigationDropdown = ref(false);
                             :active="route().current('groups.*')"
                         >
                             Groups
+                        </ResponsiveNavLink>
+                        <ResponsiveNavLink
+                            :href="route('tournaments.index')"
+                            :active="route().current('tournaments.*')"
+                        >
+                            Tournaments
                         </ResponsiveNavLink>
                         <ResponsiveNavLink
                             :href="route('badges.index')"
