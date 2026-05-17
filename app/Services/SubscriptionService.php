@@ -29,39 +29,17 @@ class SubscriptionService
 
     public function isProSubscriber(User $user): bool
     {
-        return $user->subscribed('pro');
+        return true;
     }
 
     public function hasActiveBoost(Group $group): bool
     {
-        return $group->boosts()->active()->exists();
+        return true;
     }
 
     public function canLogMatch(User $user, Group $group): array
     {
-        // 1. Group has active boost → allow
-        if ($this->hasActiveBoost($group)) {
-            return ['allowed' => true, 'reason' => null];
-        }
-
-        // 2. User is Pro → allow (doesn't count against group pool)
-        if ($this->isProSubscriber($user)) {
-            return ['allowed' => true, 'reason' => null];
-        }
-
-        // 3. Group weekly count < 5 → allow
-        $weeklyCount = $this->getWeeklyMatchCount($group);
-        if ($weeklyCount < 5) {
-            return ['allowed' => true, 'reason' => null];
-        }
-
-        // 4. Bonus logs (future — returns false for now)
-
-        // 5. Block
-        return [
-            'allowed' => false,
-            'reason' => 'This group has reached its weekly limit of 5 free matches. Upgrade to Pro or boost this group for unlimited matches.',
-        ];
+        return ['allowed' => true, 'reason' => null];
     }
 
     public function getWeeklyMatchCount(Group $group): int

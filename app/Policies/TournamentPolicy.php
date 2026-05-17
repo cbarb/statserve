@@ -29,7 +29,7 @@ class TournamentPolicy
 
     public function create(User $user): bool
     {
-        return app(SubscriptionService::class)->isProSubscriber($user);
+        return true;
     }
 
     public function update(User $user, Tournament $tournament): bool
