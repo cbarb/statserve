@@ -23,10 +23,14 @@ Comprehensive reference for the entire StatServe codebase. Use this to trace any
 15. [Gamification System (XP, Badges)](#15-gamification-system-xp-badges)
 16. [Stats System](#16-stats-system)
 17. [Group Management](#17-group-management)
-18. [Key Data Flows](#18-key-data-flows)
-19. [Dev Commands & Testing](#19-dev-commands--testing)
-20. [Session Changes Log](#20-session-changes-log)
-21. [Debugging Guide](#21-debugging-guide)
+18. [Public Tournament System](#18-public-tournament-system)
+19. [Email & Notification System](#19-email--notification-system)
+20. [Security](#20-security)
+21. [Performance & Scalability](#21-performance--scalability)
+22. [Key Data Flows](#22-key-data-flows)
+23. [Dev Commands & Testing](#23-dev-commands--testing)
+24. [Session Changes Log](#24-session-changes-log)
+25. [Debugging Guide](#25-debugging-guide)
 
 ---
 
@@ -34,13 +38,16 @@ Comprehensive reference for the entire StatServe codebase. Use this to trace any
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | Laravel 11 (PHP 8.2+) |
+| Backend | Laravel 12 (PHP 8.2+) |
 | Frontend | Vue 3 + Inertia.js |
 | Styling | Tailwind CSS + @tailwindcss/forms |
-| Database | MySQL (via Docker/Sail) |
+| Database | MySQL 8.4 (via Docker/Sail) |
+| Cache/Queue/Sessions | Redis (via Docker) |
 | Auth | Laravel Breeze (session-based) |
 | Billing | Laravel Cashier (Stripe) |
 | API Tokens | Laravel Sanctum |
+| Email | Resend (production), Mailpit (local) |
+| Geocoding | Nominatim / OpenStreetMap (free, no API key) |
 | Build | Vite + laravel-vite-plugin |
 | Routes in JS | Ziggy (tightenco/ziggy) |
 | Font | Figtree (400, 500, 600) |
@@ -54,7 +61,8 @@ Comprehensive reference for the entire StatServe codebase. Use this to trace any
 | `tailwind.config.js` | Tailwind theme (Figtree font, forms plugin) |
 | `jsconfig.json` | `@/*` → `resources/js/*` alias |
 | `config/services.php` | Stripe price env vars |
-| `bootstrap/app.php` | Middleware stack, route files |
+| `bootstrap/app.php` | Middleware stack, route files, scheduler |
+| `compose.yaml` | Docker services: app, mysql, redis, mailpit |
 
 ### Startup
 
@@ -171,17 +179,24 @@ npm run start              # Sail + Vite dev server
 - `user_1_wins`, `user_2_wins`, `total_matches`
 - `last_match_at`, `is_active`, `detected_at`
 
-**tournaments** — `2026_02_16_000020`
-- `group_id`, `created_by`, `name`, `format`, `bracket_type`
+**tournaments** — `2026_02_16_000020` + `2026_02_18_000001` + `2026_02_18_000002` + `2026_02_20_200112`
+- `group_id` (nullable for public), `created_by`, `name`, `description`, `format` (VARCHAR 30), `bracket_type`
 - `max_players`, `min_rating`, `max_rating`, `status`
+- `entry_fee` (unsigned int, nullable, cents — e.g. 1000 = $10.00), `platform_fee_percent` (unsigned tinyint, default 10)
+- `address`, `city`, `state`, `latitude`, `longitude` (location fields)
+- `is_public` (boolean, default false)
 - `registration_opens_at`, `registration_closes_at`, `starts_at`
+- **Indexes:** `(is_public, status)`, `(latitude, longitude)`, `(is_public, status, starts_at)`, `(created_by)`
 
-**tournament_entries** — `2026_02_16_000021`
+**tournament_entries** — `2026_02_16_000021` + `2026_02_20_200112`
 - `tournament_id`, `user_id`, `partner_id`, `seed`, `status`
+- `stripe_payment_intent_id` (nullable), `amount_paid` (unsigned int, nullable, cents)
+- **Indexes:** unique `(tournament_id, user_id)`, `(user_id)`, `(status)`
 
 **tournament_rounds** — `2026_02_16_000022`
 - `tournament_id`, `round_number`, `bracket`, `match_id`
 - `entry_1_id`, `entry_2_id`, `winner_entry_id`, `scheduled_at`
+- **Indexes:** `(tournament_id, bracket, round_number)`, `(entry_1_id)`, `(entry_2_id)`, `(winner_entry_id)`
 
 ---
 
@@ -212,7 +227,7 @@ npm run start              # Sail + Vite dev server
 
 **Route key:** `slug` (not `id`)
 
-**Boot:** Auto-generates `slug` (name + random chars) and `invite_code` (8-char) on creation.
+**Boot:** Auto-generates `slug` (name + random chars) and `invite_code` (16-char) on creation.
 
 | Relationship | Type | Target |
 |-------------|------|--------|
@@ -296,7 +311,9 @@ Templates stored in `badges` table. `is_secret` hides description until earned.
 - **SeasonStanding** — per-season rankings
 - **GroupMilestone** — group achievement tracking
 - **Rivalry** — auto-detected h2h rivalries
-- **Tournament**, **TournamentEntry**, **TournamentRound** — bracket tournament system
+- **Tournament** — public tournament system with location-based search. Key scopes: `publicOpen()`, `scopeNearby(lat, lng, radius)` (Haversine). Key methods: `isRegistered(User)`, `registeredCount()` (doubles entries count as 2 slots), `isFree(): bool` (returns `!$this->entry_fee`). Fillable includes location fields (address, city, state, lat, lng), `is_public`, `description`, `entry_fee`, `platform_fee_percent`.
+- **TournamentEntry** — links user (+ optional partner) to tournament with seed, status, and optional payment tracking (`stripe_payment_intent_id`, `amount_paid`)
+- **TournamentRound** — bracket match with entry_1, entry_2, winner, round_number, bracket side (winners/losers/finals)
 
 ---
 
@@ -307,7 +324,7 @@ All in `app/Enums/`:
 | Enum | Values |
 |------|--------|
 | `GroupRole` | owner, admin, member |
-| `MatchFormat` | singles, doubles |
+| `MatchFormat` | singles, doubles (legacy); mens_singles, womens_singles, open_singles, mens_doubles, womens_doubles, mixed_doubles, open_doubles (tournament). Has `isDoubles()`, `label()`, `tournamentFormats()` helpers |
 | `MatchStatus` | in_progress, completed, cancelled |
 | `SessionStatus` | active, completed |
 | `PlayerPosition` | left, right, solo |
@@ -440,6 +457,45 @@ Team assignment logic for sessions.
 3. Generate team split not yet used
 4. Fallback to random if all splits exhausted
 
+### GeocodingService (`app/Services/GeocodingService.php`)
+
+Wraps Nominatim (OpenStreetMap) API for address-to-coordinates lookups.
+
+| Method | Purpose |
+|--------|---------|
+| `geocode(string $address): ?array` | Returns `{latitude, longitude}` or null. Results cached 24 hours via Redis. 5-second HTTP timeout. |
+
+Cache key: `geocode:{md5(lowercase(trimmed address))}`. No API key required.
+
+### TournamentService (`app/Services/TournamentService.php`)
+
+Manages public tournament lifecycle. Constructor DI: GeocodingService, SubscriptionService, BracketService.
+
+| Method | Purpose |
+|--------|---------|
+| `createPublicTournament(User, data): Tournament` | Geocodes address, creates tournament with location fields |
+| `searchNearby(?location, radius, perPage): LengthAwarePaginator` | Combined text search (city/state LIKE) + Haversine distance search. Sorts by distance when coords available, otherwise by start date. |
+| `join(User, Tournament, ?partnerId): TournamentEntry` | Validates registration window, capacity, doubles partner. Dispatches `TournamentJoinedNotification` to user + partner. Free tournaments only. |
+| `createEntryCheckout(User, Tournament, ?partnerId): string` | Validates join, creates Stripe Checkout session for entry fee, returns checkout URL. Metadata passes tournament_id/user_id/partner_id through checkout flow. |
+| `completeEntryPayment(array $session): ?TournamentEntry` | Called from webhook on `checkout.session.completed`. Creates entry with `stripe_payment_intent_id` and `amount_paid`. Idempotent (skips if already registered). |
+| `leave(User, Tournament): void` | Removes entry if still in Registration status. Issues Stripe refund if `stripe_payment_intent_id` exists. |
+| `start(Tournament): void` | Delegates to BracketService to generate bracket |
+
+### BracketService (`app/Services/BracketService.php`)
+
+Generates and manages tournament brackets for all three bracket types.
+
+| Method | Purpose |
+|--------|---------|
+| `startTournament(Tournament): void` | Shuffles entries, seeds them, generates bracket by type, sets status to InProgress |
+| `setWinner(TournamentRound, TournamentEntry): void` | Sets winner, eliminates loser, advances winner to next round, detects tournament completion |
+| `getStandings(Tournament): array` | Returns placement standings (elimination) or W/L records (round robin) |
+
+**Bracket generators:**
+- **Single elimination** — Power-of-2 seeding with byes for non-power-of-2 entry counts
+- **Double elimination** — Winners bracket + losers bracket + grand finals. Losers get second chance.
+- **Round robin** — N*(N-1)/2 matches, all entries play each other. Ranked by wins.
+
 ---
 
 ## 6. Controllers & Routes
@@ -520,6 +576,25 @@ Team assignment logic for sessions.
 | GET | `/badges` | BadgeController@index | `badges.index` |
 | PUT | `/badges/{badge}/pin` | BadgeController@pin | `badges.pin` |
 
+**Tournaments:**
+| Method | Path | Handler | Name | Middleware |
+|--------|------|---------|------|-----------|
+| GET | `/tournaments` | TournamentController@index | `tournaments.index` | `throttle:search` |
+| GET | `/tournaments/create` | TournamentController@create | `tournaments.create` | — |
+| POST | `/tournaments` | TournamentController@store | `tournaments.store` | — |
+| GET | `/tournaments/{tournament}` | TournamentController@show | `tournaments.show` | — |
+| POST | `/tournaments/{tournament}/join` | TournamentController@join | `tournaments.join` | — |
+| DELETE | `/tournaments/{tournament}/leave` | TournamentController@leave | `tournaments.leave` | — |
+| POST | `/tournaments/{tournament}/start` | TournamentController@start | `tournaments.start` | — |
+| POST | `/tournaments/{tournament}/rounds/{round}/winner` | TournamentController@setWinner | `tournaments.set-winner` | — |
+
+**User Search:**
+| Method | Path | Handler | Name | Middleware |
+|--------|------|---------|------|-----------|
+| GET | `/users/search` | UserSearchController@search | `users.search` | `throttle:search` |
+
+Requires exact email match (min 5 chars, must be valid email). Returns max 1 result. Used for tournament partner selection.
+
 **Play:**
 | Method | Path | Handler | Name |
 |--------|------|---------|------|
@@ -556,6 +631,19 @@ Most API controllers return **501 Not Implemented** except:
 | `manageMembers(User, Group)` | User is admin or owner | remove members |
 | `transferOwnership(User, Group)` | User is owner | transfer, promote |
 
+### TournamentPolicy (`app/Policies/TournamentPolicy.php`)
+
+| Method | Check | Used By |
+|--------|-------|---------|
+| `viewAny(User)` | Always true (any auth user) | index |
+| `view(User, Tournament)` | Public tournament or group member | show |
+| `create(User)` | User is Pro subscriber | create, store |
+| `update(User, Tournament)` | User is tournament creator | — |
+| `delete(User, Tournament)` | Creator + status is Registration | — |
+| `start(User, Tournament)` | Creator + status is Registration | start |
+| `setWinner(User, Tournament)` | Creator + status is InProgress | setWinner |
+| `join(User, Tournament)` | Public tournament or group member | join |
+
 ---
 
 ## 8. Form Requests (Validation)
@@ -576,6 +664,29 @@ Most API controllers return **501 Not Implemented** except:
 - `players`: required, array, 2-4 entries
 - Each player: `user_id`, `team` (1 or 2), `position` (PlayerPosition enum)
 - Each team must have correct player count (1 for singles, 2 for doubles)
+
+### StoreTournamentRequest
+- `name`: required, string, min:3, max:150
+- `description`: nullable, string, max:2000
+- `format`: required, MatchFormat enum
+- `bracket_type`: required, BracketType enum
+- `max_players`: required, integer, 4-128
+- `address`: required, string, max:255
+- `city`: required, string, max:100
+- `state`: required, string, max:100
+- `starts_at`: required, date, after:now
+- `registration_opens_at`: nullable, date, before:starts_at
+- `registration_closes_at`: nullable, date, before:starts_at, after_or_equal:registration_opens_at
+- `entry_fee`: nullable, integer, min:100 (=$1), max:100000 (=$1000). Stored in cents.
+- `min_rating` / `max_rating`: nullable, integer (max >= min)
+- **Authorization:** User can create Tournament (Pro only)
+
+### JoinTournamentRequest
+- For doubles: `partner_id` required, exists in users, not self, not already registered
+- For singles: `partner_id` nullable (service layer forces null)
+
+### SetWinnerRequest
+- `winner_entry_id`: required, exists in tournament_entries
 
 ### ProfileUpdateRequest
 - `name`: required, string, max:255
@@ -748,6 +859,36 @@ flash: {
 
 **Billing/Success** — Green checkmark confirmation page.
 
+### Tournament Pages
+
+**Tournaments/Index** (`Pages/Tournaments/Index.vue`)
+- Location search bar with radius selector (10/25/50/100 miles)
+- Tournament card grid with format badge, bracket type badge, entry fee badge ("$10.00" or "Free"), players count, distance
+- Pagination (text-safe, no v-html)
+- "Create Tournament" button (Pro only)
+
+**Tournaments/Create** (`Pages/Tournaments/Create.vue`)
+- Full form: name, description, format (7 tournament formats), bracket type, max players
+- Location fields: address, city, state
+- Date fields: starts_at, registration_opens_at, registration_closes_at
+- Optional entry fee field (dollar input, stored as cents). Helper text: "Leave empty for free tournament. Platform takes 10% of entry fees."
+- Default format: `open_singles`
+
+**Tournaments/Show** (`Pages/Tournaments/Show.vue`)
+- Tournament info bar with status/format/bracket/entry fee badges
+- **Payment flash messages:** Detects `?payment=success` / `?payment=cancelled` query params from Stripe redirect, shows banner, cleans URL
+- **Session flash messages:** Displays `flash.status` from server redirects (e.g. "You have joined the tournament.")
+- **Registration phase:** participant list, join form (with partner search for doubles), leave button
+- **Entry fee UX:** Join button shows "Pay & Join — $X.XX" for paid singles, "Pay & Join Team — $X.XX" for paid doubles. Leave button shows "Refund & Leave" for paid entries.
+- **Partner search:** requires full email address, exact match only, debounced
+- **Start Tournament** button (organizer only, registration phase, with confirm dialog)
+- **Bracket views:**
+  - Single elimination: horizontal column layout with W (winner) buttons
+  - Double elimination: winners bracket + losers bracket + grand finals sections
+  - Round robin: match list with winner buttons + standings table (W/L/Win%)
+- **Champion banner** on tournament completion
+- Player count reflects doubles (each entry = 2 slots)
+
 ### Badge Page
 
 **Badges/Index** — All badges grouped by category. Progress bars for unearned, pin toggle for earned (max 3).
@@ -792,6 +933,7 @@ Pro and Boost are **independent** — not tiers. A user can have both.
 Extends Cashier's base webhook controller. Listens for:
 - `customer.subscription.created/updated` → `handleSubscriptionCreated()` (activates boost)
 - `customer.subscription.deleted` → `handleSubscriptionDeleted()` (expires boost)
+- `checkout.session.completed` → If metadata `type=tournament_entry`, calls `TournamentService::completeEntryPayment()` (creates entry + notifies)
 
 ### Free Tier Limits
 
@@ -916,7 +1058,7 @@ Enforced in `StatsController` — restricts range to max `monthly` if user can't
 
 ### Invite System
 
-- Each group has a unique 8-char `invite_code`
+- Each group has a unique 16-char `invite_code`
 - Invite URL: `{origin}/join/{code}`
 - Public preview page (guest or auth)
 - Joining attaches user as Member with `joined_at=now`
@@ -932,7 +1074,216 @@ Enforced in `StatsController` — restricts range to max `monthly` if user can't
 
 ---
 
-## 18. Key Data Flows
+## 18. Public Tournament System
+
+### Overview
+
+Public tournaments allow Pro users to create tournaments discoverable by any logged-in user. Supports 7 format types, 3 bracket types, location-based search, and partner selection for doubles.
+
+### Tournament Lifecycle
+
+```
+1. Creation (Pro user)
+   → TournamentService::createPublicTournament()
+   → Geocodes address via GeocodingService (cached 24h)
+   → Status: Registration
+
+2. Discovery
+   → TournamentController@index
+   → TournamentService::searchNearby()
+   → Combined text search (city/state LIKE) + Haversine distance
+   → Sorted by distance when coordinates available
+
+3. Registration
+   → TournamentController@join
+   → Free tournaments: TournamentService::join() → creates entry → notifies
+   → Paid tournaments: TournamentService::createEntryCheckout() → redirects to Stripe Checkout
+     → On payment success: webhook fires checkout.session.completed
+     → TournamentService::completeEntryPayment() → creates entry with payment_intent_id → notifies
+   → Validates: status, registration window, capacity, doubles partner
+   → Dispatches TournamentJoinedNotification (user + partner for doubles)
+   → Doubles entries count as 2 slots toward max_players
+   → For doubles with entry fee, registrant pays single fee covering both players
+
+4. Start
+   → TournamentController@start → BracketService::startTournament()
+   → Shuffles + seeds entries
+   → Generates bracket (single elim / double elim / round robin)
+   → Status: InProgress
+
+5. Match Play
+   → TournamentController@setWinner → BracketService::setWinner()
+   → Validates round belongs to tournament (IDOR protection)
+   → Sets winner, eliminates loser, advances to next round
+   → Detects tournament completion → Status: Completed
+```
+
+### Location Search (Haversine)
+
+Tournament search uses a dual strategy:
+1. **Text match** — `city LIKE %query%` OR `state LIKE %query%`
+2. **Distance match** — Haversine formula within radius (default 50 miles)
+
+Results sorted by distance when geocoding succeeds, otherwise by start date. Geocoding results cached 24 hours to avoid hitting Nominatim rate limits.
+
+### Format Types
+
+| Format | Type | Partner Required |
+|--------|------|-----------------|
+| `mens_singles` | Singles | No |
+| `womens_singles` | Singles | No |
+| `open_singles` | Singles | No |
+| `mens_doubles` | Doubles | Yes |
+| `womens_doubles` | Doubles | Yes |
+| `mixed_doubles` | Doubles | Yes |
+| `open_doubles` | Doubles | Yes |
+
+Legacy `singles` / `doubles` values preserved for game sessions. Tournament-specific formats added via migration `2026_02_18_000002` which widened the format column to VARCHAR(30).
+
+---
+
+## 19. Email & Notification System
+
+### Email Branding
+
+All emails use StatServe branding via vendor-published mail templates:
+
+- **Header** (`resources/views/vendor/mail/html/header.blade.php`): Styled text logo — green "Stat" (`#059669`) + dark "Serve" (`#18181b`)
+- **Footer** (`resources/views/vendor/mail/html/message.blade.php`): "© {year} StatServe. Track your pickleball stats."
+- **Theme**: Custom `statserve.css` mail theme with brand color `#059669`
+
+Branding applies to ALL notifications automatically since all use the `MailMessage` fluent builder.
+
+### Notifications
+
+All notifications implement `ShouldQueue` and use the `Queueable` trait (processed via Redis queue).
+
+| Notification | Trigger | Recipients | Channel |
+|-------------|---------|------------|---------|
+| `WelcomeNotification` | User registration | New user | mail |
+| `ProSubscriptionConfirmedNotification` | Pro subscription created | Subscriber | mail |
+| `ProSubscriptionCancelledNotification` | Pro subscription cancelled | Subscriber | mail |
+| `GroupBoostConfirmedNotification` | Group boost activated | Purchaser | mail |
+| `GroupBoostCancelledNotification` | Group boost cancelled | Purchaser | mail |
+| `GroupBoostExpiredNotification` | Group boost expired | Purchaser | mail |
+| `TournamentJoinedNotification` | User joins tournament | User + partner (doubles) | mail |
+| `TournamentStartingNotification` | 24h before tournament | All registered users + partners | mail |
+
+### Tournament Reminder Scheduler
+
+**Command:** `php artisan tournaments:send-reminders` (`app/Console/Commands/SendTournamentReminders.php`)
+
+- Finds tournaments where `starts_at` is 23-25 hours from now (2-hour window avoids duplicates with hourly cron)
+- Status must be Registration or InProgress
+- Collects all user_ids + partner_ids from entries
+- Bulk-sends `TournamentStartingNotification` via `Notification::send()`
+
+**Scheduled** in `bootstrap/app.php`:
+```php
+->withSchedule(function (Schedule $schedule) {
+    $schedule->command('tournaments:send-reminders')->hourly();
+})
+```
+
+---
+
+## 20. Security
+
+### Rate Limiting
+
+Defined in `AppServiceProvider::configureRateLimiting()`:
+
+| Limiter | Rate | Applied To |
+|---------|------|-----------|
+| `auth` | 5/minute per IP | Login, registration, forgot-password, reset-password (web + API) |
+| `api` | 60/minute per user (or IP) | All authenticated API routes |
+| `search` | 30/minute per user | User search, tournament index |
+| `sensitive` | 10/minute per user | Group invite join |
+
+Email verification routes have separate `throttle:6,1` middleware.
+
+### IDOR Protection
+
+- `TournamentController::setWinner()` verifies `$round->tournament_id === $tournament->id` before processing
+- Explicit `$this->authorize('setWinner', $tournament)` call in controller
+- Tournament entries scoped to tournament: `$tournament->entries()->findOrFail($id)`
+
+### XSS Prevention
+
+- Pagination in `Tournaments/Index.vue` uses text interpolation `{{ }}` instead of `v-html`
+- HTML entities (`&laquo;`, `&raquo;`) decoded manually for pagination arrows
+
+### User Enumeration Prevention
+
+- `/users/search` requires exact full email address (validated with `email` rule, `min:5`)
+- Returns max 1 result (exact match, not prefix search)
+- Rate limited to 30/minute
+- Frontend requires `@` symbol before triggering search
+
+### Invite Code Security
+
+- Group invite codes are 16 characters (was 8), giving ~96 bits of entropy
+- Join endpoint rate limited to 10/minute
+
+### Stats Access Control
+
+- Head-to-head queries validate both player IDs are group members before executing
+- `range` parameter defaults to `monthly` for non-Pro users (server-enforced)
+
+### Input Validation
+
+- `registration_closes_at` must be `after_or_equal:registration_opens_at`
+- Tournament `starts_at` must be `after:now`
+- All tournament formats validated against `MatchFormat` enum
+
+---
+
+## 21. Performance & Scalability
+
+### Infrastructure
+
+| Component | Driver | Purpose |
+|-----------|--------|---------|
+| Sessions | Redis | Eliminates DB reads/writes per request |
+| Cache | Redis | Fast geocoding cache, rate limiting counters |
+| Queues | Redis | Async notification processing |
+| Database | MySQL 8.4 | Primary data store |
+
+### Database Indexes (Migration: `2026_02_19_014903`)
+
+| Table | Index | Purpose |
+|-------|-------|---------|
+| `tournament_rounds` | `(tournament_id, bracket, round_number)` | Bracket queries |
+| `tournament_rounds` | `(entry_1_id)`, `(entry_2_id)`, `(winner_entry_id)` | Entry lookups |
+| `tournament_entries` | `(user_id)` | "Is user registered?" checks |
+| `tournament_entries` | `(status)` | Status filtering |
+| `tournaments` | `(is_public, status, starts_at)` | Public tournament listing |
+| `tournaments` | `(created_by)` | Organizer lookups |
+| `match_players` | `(user_id, match_id)` | Badge/stats join queries |
+
+### Geocoding Cache
+
+`GeocodingService::geocode()` caches results for 24 hours via `Cache::remember()`. Cache key: `geocode:{md5(address)}`. 5-second HTTP timeout prevents blocking on Nominatim outages.
+
+### Estimated Capacity
+
+| Users | DAU | Infra Needed | Est. Cost |
+|-------|-----|-------------|-----------|
+| 1,000 | ~100 | Single VPS (2 vCPU, 4GB) + MySQL | ~$39/mo |
+| 5,000 | ~500 | App server + managed MySQL + Redis | ~$125/mo |
+| 10,000 | ~1,000 | Multiple app servers + load balancer + read replica | ~$260/mo |
+
+### Future Optimizations (when needed)
+
+- Cache leaderboards/stats (invalidate on match creation)
+- Queue badge/XP computation (currently synchronous in match creation)
+- Bounding-box pre-filter before Haversine distance calculation
+- Read replica for stats/leaderboard queries
+- Paginate stats queries for large groups (10k+ matches)
+
+---
+
+## 22. Key Data Flows
 
 ### Match → XP → Level → Badge Flow
 
@@ -979,7 +1330,7 @@ Every request → HandleInertiaRequests middleware
 
 ---
 
-## 19. Dev Commands & Testing
+## 23. Dev Commands & Testing
 
 ### Artisan Commands (in `routes/console.php`)
 
@@ -991,6 +1342,13 @@ Every request → HandleInertiaRequests middleware
 ./vendor/bin/sail artisan dev:reset-matches {group_slug}
 ```
 
+### Tournament Commands
+
+```bash
+# Send 24-hour reminders for upcoming tournaments (runs hourly via scheduler)
+./vendor/bin/sail artisan tournaments:send-reminders
+```
+
 ### Useful Commands
 
 ```bash
@@ -999,6 +1357,7 @@ Every request → HandleInertiaRequests middleware
 ./vendor/bin/sail artisan tinker               # REPL
 ./vendor/bin/sail artisan test                 # Run tests
 ./vendor/bin/sail artisan optimize:clear       # Clear caches
+./vendor/bin/sail artisan schedule:run         # Run scheduled commands
 ```
 
 ### Seeders (run order)
@@ -1014,7 +1373,7 @@ Every request → HandleInertiaRequests middleware
 
 ---
 
-## 20. Session Changes Log
+## 24. Session Changes Log
 
 Changes made during the Feb 17 2026 development session:
 
@@ -1029,9 +1388,76 @@ Changes made during the Feb 17 2026 development session:
 
 For detailed file-by-file breakdown of these changes, see `SESSION_DOCS.md`.
 
+### Feb 18 2026 — Public Tournaments, Brackets, Emails, Security, Performance
+
+**Public Tournament System:**
+1. Added location fields to tournaments (address, city, state, lat/lng, is_public) via migration
+2. Created GeocodingService (Nominatim API, cached 24h)
+3. Created TournamentService (create, search, join, leave, start)
+4. Location search using combined text match + Haversine distance
+5. Added TournamentPolicy (Pro-only creation, public viewing)
+6. Added StoreTournamentRequest, JoinTournamentRequest, SetWinnerRequest
+7. Created TournamentController with full CRUD + bracket actions
+8. Created UserSearchController for partner search (exact email match)
+9. Built Tournaments/Index, Create, Show Vue pages
+10. Added "Tournaments" to main navigation
+
+**Tournament Formats:**
+11. Expanded MatchFormat enum from 2 to 9 values (7 tournament-specific)
+12. Widened format column from VARCHAR(20) to VARCHAR(30) via migration
+13. Added partner selection UI with email search for doubles formats
+
+**Bracket System:**
+14. Created BracketService with single/double elimination and round robin generators
+15. Single elimination: power-of-2 seeding with byes
+16. Double elimination: winners + losers + grand finals brackets
+17. Round robin: N*(N-1)/2 matches with W/L standings
+18. Winner advancement and tournament completion detection
+19. Built bracket visualization UI for all three types
+
+**Emails & Branding:**
+20. Updated mail header template with StatServe branded logo (green "Stat" + dark "Serve")
+21. Updated mail footer with StatServe tagline
+22. Created TournamentJoinedNotification (user + doubles partner)
+23. Created TournamentStartingNotification (24-hour reminder)
+24. Created SendTournamentReminders artisan command (hourly schedule)
+25. Wired notification dispatch in TournamentService::join()
+
+**Security Hardening:**
+26. Added rate limiting: auth (5/min), api (60/min), search (30/min), sensitive (10/min)
+27. Applied throttle middleware to auth routes, API routes, search, invite join
+28. Fixed XSS in tournament pagination (replaced v-html with text interpolation)
+29. Fixed IDOR in setWinner (validate round belongs to tournament + explicit authorize)
+30. Strengthened invite codes from 8 to 16 characters
+31. Changed user search from prefix match to exact email match
+32. Added group membership validation on H2H stats queries
+33. Added registration date validation (closes_at must be after opens_at)
+
+**Performance & Scale:**
+34. Switched session/cache/queue drivers from database to Redis
+35. Added Redis service to Docker compose
+36. Added performance indexes on tournament_rounds, tournament_entries, tournaments, match_players
+37. Added geocoding result caching (24-hour TTL) with 5-second HTTP timeout
+
+### Feb 20 2026 — Tournament Entry Fees
+
+**Entry Fee System:**
+1. Migration: Added `entry_fee` (cents) and `platform_fee_percent` (default 10) to tournaments; `stripe_payment_intent_id` and `amount_paid` to tournament_entries
+2. Updated Tournament model with `isFree()` helper, added entry_fee/platform_fee_percent to fillable + casts
+3. Updated TournamentEntry model with payment fields
+4. Added `entry_fee` validation to StoreTournamentRequest (min $1, max $1000)
+5. Split join flow: free tournaments use direct join, paid tournaments redirect to Stripe Checkout
+6. Created `TournamentService::createEntryCheckout()` — Stripe Checkout session with tournament metadata
+7. Created `TournamentService::completeEntryPayment()` — webhook-driven entry creation (idempotent)
+8. Updated `TournamentService::leave()` — issues Stripe refund for paid entries
+9. Updated WebhookController to handle `checkout.session.completed` for tournament entries
+10. Show.vue: entry fee badge, payment flash messages (?payment=success/cancelled), "Pay & Join" / "Refund & Leave" button text
+11. Create.vue: optional entry fee input (dollars→cents), platform fee helper text
+12. Index.vue: fee badge on tournament cards ("$10.00" or "Free")
+
 ---
 
-## 21. Debugging Guide
+## 25. Debugging Guide
 
 ### "Match limit not working"
 1. Check `SubscriptionService::canLogMatch()` enforcement order
@@ -1079,3 +1505,45 @@ For detailed file-by-file breakdown of these changes, see `SESSION_DOCS.md`.
 - `endSessionOnly()` in Session.vue must have `onSuccess` callback
 - Server: `MatchService::endSession()` sets status=Completed
 - Session must belong to the group (controller validates this)
+
+### "Tournament search not finding results"
+1. Check if geocoding is returning coordinates: `cache()->get('geocode:' . md5(strtolower(trim($query))))`
+2. Text search checks `city LIKE %query%` OR `state LIKE %query%`
+3. Distance search uses 50-mile radius by default
+4. Nominatim may be rate-limited — check `storage/logs/laravel.log` for geocoding warnings
+5. Cache can be cleared: `cache()->forget('geocode:...')`
+
+### "Can't join tournament"
+1. Check tournament status is `registration`
+2. Check `registration_opens_at` <= now <= `registration_closes_at`
+3. Check player count hasn't reached `max_players` (doubles = entries * 2)
+4. Check user isn't already registered: `tournament_entries` table
+5. For doubles: partner must not already be registered, partner_id != self
+
+### "Tournament bracket not generating"
+1. Tournament must be in `registration` status
+2. Only the creator can start (TournamentPolicy::start)
+3. Need at least 2 entries for single/double elimination
+4. Check `tournament_rounds` table after starting
+5. BracketService seeds entries randomly and generates rounds
+
+### "Tournament emails not sending"
+1. Check queue worker is running: `./vendor/bin/sail artisan queue:work`
+2. Check Redis connection: `Redis::ping()` in tinker
+3. Notifications are queued (ShouldQueue) — check `failed_jobs` table
+4. For local dev, check Mailpit at localhost:8025
+5. Reminder command: `./vendor/bin/sail artisan tournaments:send-reminders`
+
+### "Tournament entry fee payment not completing"
+1. Check webhook is receiving `checkout.session.completed` events — check `storage/logs/laravel.log`
+2. Metadata must include `type: tournament_entry`, `tournament_id`, `user_id`
+3. `completeEntryPayment()` is idempotent — if user already registered, it logs and skips
+4. Verify `STRIPE_WEBHOOK_SECRET` matches in `.env`
+5. Check `tournament_entries` table for `stripe_payment_intent_id` and `amount_paid`
+6. For refunds: `leave()` calls `$user->refund($paymentIntentId)` — check Stripe dashboard
+
+### "Rate limiting blocking legitimate users"
+1. Check which limiter is triggered — response will have `429` status with `Retry-After` header
+2. Rate limits defined in `AppServiceProvider::configureRateLimiting()`
+3. Auth: 5/min per IP, API: 60/min per user, Search: 30/min per user
+4. Clear rate limit: `RateLimiter::clear($key)` in tinker

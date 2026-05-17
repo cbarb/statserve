@@ -11,6 +11,7 @@ const form = useForm({
     email: '',
     password: '',
     password_confirmation: '',
+    dupr_id: '',
 });
 
 const submit = () => {
@@ -90,6 +91,23 @@ const submit = () => {
                     class="mt-2"
                     :message="form.errors.password_confirmation"
                 />
+            </div>
+
+            <div class="mt-4">
+                <InputLabel for="dupr_id" value="DUPR ID (optional)" />
+
+                <TextInput
+                    id="dupr_id"
+                    type="text"
+                    class="mt-1 block w-full"
+                    v-model="form.dupr_id"
+                    autocomplete="off"
+                    placeholder="e.g. 12345678"
+                />
+
+                <p class="mt-1 text-xs text-gray-500">Find your DUPR ID at dupr.com. You can add this later in profile settings.</p>
+
+                <InputError class="mt-2" :message="form.errors.dupr_id" />
             </div>
 
             <div class="mt-4 flex items-center justify-end">

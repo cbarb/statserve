@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DuprBadge from '@/Components/DuprBadge.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import StatCard from '@/Components/Stats/StatCard.vue';
 import TimeRangeSelector from '@/Components/Stats/TimeRangeSelector.vue';
@@ -57,7 +58,7 @@ const playerName = (id) => props.members.find(m => m.id === id)?.name ?? 'Unknow
                                 <label class="block text-sm font-medium text-gray-700">Player 1</label>
                                 <select v-model="selectedPlayer1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                                     <option :value="null" disabled>Select player</option>
-                                    <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
+                                    <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}{{ m.dupr_id ? ` (DUPR: ${m.dupr_id})` : '' }}</option>
                                 </select>
                             </div>
                             <span class="pb-2 text-lg font-bold text-gray-400">vs</span>
@@ -65,7 +66,7 @@ const playerName = (id) => props.members.find(m => m.id === id)?.name ?? 'Unknow
                                 <label class="block text-sm font-medium text-gray-700">Player 2</label>
                                 <select v-model="selectedPlayer2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
                                     <option :value="null" disabled>Select player</option>
-                                    <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
+                                    <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}{{ m.dupr_id ? ` (DUPR: ${m.dupr_id})` : '' }}</option>
                                 </select>
                             </div>
                             <SecondaryButton @click="compare" :disabled="!selectedPlayer1 || !selectedPlayer2 || selectedPlayer1 === selectedPlayer2">

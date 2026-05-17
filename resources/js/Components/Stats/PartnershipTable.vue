@@ -1,4 +1,6 @@
 <script setup>
+import DuprBadge from '@/Components/DuprBadge.vue';
+
 defineProps({
     partnerships: Array,
 });
@@ -20,8 +22,8 @@ defineProps({
             </thead>
             <tbody class="divide-y divide-gray-100">
                 <tr v-for="p in partnerships" :key="`${p.player1_id}-${p.player2_id}`" class="hover:bg-gray-50">
-                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900">{{ p.player1_name }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900">{{ p.player2_name }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900">{{ p.player1_name }} <DuprBadge :dupr-id="p.player1_dupr_id" /></td>
+                    <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-900">{{ p.player2_name }} <DuprBadge :dupr-id="p.player2_dupr_id" /></td>
                     <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ p.games }}</td>
                     <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ p.wins }}</td>
                     <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ p.losses }}</td>

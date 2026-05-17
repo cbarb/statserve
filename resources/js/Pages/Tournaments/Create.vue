@@ -5,6 +5,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 defineProps({
     formats: Array,
@@ -23,8 +24,14 @@ const form = useForm({
     starts_at: '',
     registration_opens_at: '',
     registration_closes_at: '',
+    entry_fee: '',
     min_rating: '',
     max_rating: '',
+});
+
+const entryFeeDollars = computed({
+    get: () => form.entry_fee ? (form.entry_fee / 100).toFixed(2) : '',
+    set: (val) => { form.entry_fee = val ? Math.round(parseFloat(val) * 100) : ''; },
 });
 
 const submit = () => {
@@ -187,6 +194,25 @@ const submit = () => {
                                             <InputError :message="form.errors.registration_closes_at" class="mt-2" />
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-gray-200 pt-6">
+                                <h3 class="text-sm font-medium text-gray-900">Entry Fee (optional)</h3>
+                                <div class="mt-4">
+                                    <InputLabel for="entry_fee" value="Entry Fee ($)" />
+                                    <TextInput
+                                        id="entry_fee"
+                                        v-model="entryFeeDollars"
+                                        type="number"
+                                        step="0.01"
+                                        min="1"
+                                        max="1000"
+                                        class="mt-1 block w-full sm:w-48"
+                                        placeholder="Free"
+                                    />
+                                    <p class="mt-1 text-xs text-gray-500">Leave empty for a free tournament. Platform takes 10% of entry fees.</p>
+                                    <InputError :message="form.errors.entry_fee" class="mt-2" />
                                 </div>
                             </div>
 

@@ -37,7 +37,9 @@ class StatsController extends Controller
             ->toArray();
 
         foreach ($leaderboard as &$row) {
-            $row['name'] = $members[$row['user_id']] ?? 'Unknown';
+            $member = $members[$row['user_id']] ?? null;
+            $row['name'] = $member['name'] ?? 'Unknown';
+            $row['dupr_id'] = $member['dupr_id'] ?? null;
             $row['level'] = $levels[$row['user_id']] ?? 1;
         }
 
@@ -58,16 +60,19 @@ class StatsController extends Controller
         [$from, $to] = $this->parseRange($range);
 
         $members = $group->members()
-            ->select('users.id', 'users.name')
+            ->select('users.id', 'users.name', 'users.dupr_id')
             ->get()
-            ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name]);
+            ->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'dupr_id' => $m->dupr_id]);
 
         $h2h = null;
         $player1Id = $request->query('player1');
         $player2Id = $request->query('player2');
 
         if ($player1Id && $player2Id && $player1Id !== $player2Id) {
-            $h2h = $this->stats->headToHead((int) $player1Id, (int) $player2Id, $group->id, $from, $to);
+            $memberIds = $group->members()->pluck('users.id');
+            if ($memberIds->contains((int) $player1Id) && $memberIds->contains((int) $player2Id)) {
+                $h2h = $this->stats->headToHead((int) $player1Id, (int) $player2Id, $group->id, $from, $to);
+            }
         }
 
         return Inertia::render('Groups/Stats/HeadToHead', [
@@ -93,8 +98,12 @@ class StatsController extends Controller
         $members = $this->getGroupMembersMap($group);
 
         foreach ($partnerships as &$pair) {
-            $pair['player1_name'] = $members[$pair['player1_id']] ?? 'Unknown';
-            $pair['player2_name'] = $members[$pair['player2_id']] ?? 'Unknown';
+            $m1 = $members[$pair['player1_id']] ?? null;
+            $m2 = $members[$pair['player2_id']] ?? null;
+            $pair['player1_name'] = $m1['name'] ?? 'Unknown';
+            $pair['player1_dupr_id'] = $m1['dupr_id'] ?? null;
+            $pair['player2_name'] = $m2['name'] ?? 'Unknown';
+            $pair['player2_dupr_id'] = $m2['dupr_id'] ?? null;
         }
 
         return Inertia::render('Groups/Stats/Partnerships', [
@@ -118,7 +127,9 @@ class StatsController extends Controller
         $members = $this->getGroupMembersMap($group);
 
         if ($bestPartner) {
-            $bestPartner['partner_name'] = $members[$bestPartner['partner_id']] ?? 'Unknown';
+            $bp = $members[$bestPartner['partner_id']] ?? null;
+            $bestPartner['partner_name'] = $bp['name'] ?? 'Unknown';
+            $bestPartner['partner_dupr_id'] = $bp['dupr_id'] ?? null;
         }
 
         return Inertia::render('Groups/Stats/PlayerDetail', [
@@ -127,6 +138,7 @@ class StatsController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'avatar_url' => $user->avatar_url,
+                'dupr_id' => $user->dupr_id,
             ],
             'stats' => $stats,
             'bestPartner' => $bestPartner,
@@ -172,7 +184,10 @@ class StatsController extends Controller
     private function getGroupMembersMap(Group $group): array
     {
         return $group->members()
-            ->pluck('users.name', 'users.id')
+            ->select('users.id', 'users.name', 'users.dupr_id')
+            ->get()
+            ->keyBy('id')
+            ->map(fn ($m) => ['name' => $m->name, 'dupr_id' => $m->dupr_id])
             ->toArray();
     }
 }

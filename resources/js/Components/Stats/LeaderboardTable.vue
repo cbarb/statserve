@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import DuprBadge from '@/Components/DuprBadge.vue';
 
 const props = defineProps({
     rows: Array,
@@ -95,7 +96,8 @@ const formatDiff = (val) => {
                             >
                                 {{ row.name }}
                             </Link>
-                            <span v-else class="truncate">{{ row.name }}</span> <br>
+                            <span v-else class="truncate">{{ row.name }}</span>
+                            <DuprBadge :dupr-id="row.dupr_id" /> <br>
                             <span
                                 v-if="row.level"
                                 class="inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600"

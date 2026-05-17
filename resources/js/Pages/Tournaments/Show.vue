@@ -1,10 +1,11 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DuprBadge from '@/Components/DuprBadge.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
-import { ref, computed, watch } from 'vue';
+import { Head, useForm, router, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch, onMounted } from 'vue';
 
 const props = defineProps({
     tournament: Object,
@@ -30,7 +31,7 @@ let searchTimeout = null;
 
 watch(partnerQuery, (value) => {
     clearTimeout(searchTimeout);
-    if (value.length < 3) {
+    if (value.length < 5 || !value.includes('@')) {
         partnerResults.value = [];
         showResults.value = false;
         return;
@@ -97,6 +98,29 @@ const isCompleted = computed(() => props.tournament.status === 'completed');
 const isRegistration = computed(() => props.tournament.status === 'registration');
 const hasBracket = computed(() => isInProgress.value || isCompleted.value);
 
+// Payment flash message from Stripe redirect
+const paymentFlash = ref(null);
+const page = usePage();
+
+onMounted(() => {
+    const url = new URL(window.location);
+    const payment = url.searchParams.get('payment');
+    if (payment === 'success') {
+        paymentFlash.value = { type: 'success', message: 'Payment successful! You are now registered for this tournament.' };
+    } else if (payment === 'cancelled') {
+        paymentFlash.value = { type: 'info', message: 'Payment was cancelled. You have not been registered.' };
+    }
+    // Clean the URL
+    if (payment) {
+        url.searchParams.delete('payment');
+        url.searchParams.delete('session_id');
+        window.history.replaceState({}, '', url.pathname + url.search);
+    }
+});
+
+// Session flash (from redirect with('status', ...))
+const sessionFlash = computed(() => page.props.flash?.status);
+
 // Get max round number for a bracket side
 const maxRound = (bracket) => {
     if (!props.rounds[bracket]) return 0;
@@ -114,6 +138,17 @@ const maxRound = (bracket) => {
 
         <div class="py-12">
             <div class="mx-auto max-w-7xl sm:px-6 lg:px-8">
+
+                <!-- Flash Messages -->
+                <div v-if="paymentFlash" class="mb-6 rounded-lg px-4 py-3 text-sm" :class="{
+                    'bg-green-50 text-green-800 border border-green-200': paymentFlash.type === 'success',
+                    'bg-blue-50 text-blue-800 border border-blue-200': paymentFlash.type === 'info',
+                }">
+                    {{ paymentFlash.message }}
+                </div>
+                <div v-if="sessionFlash" class="mb-6 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    {{ sessionFlash }}
+                </div>
 
                 <!-- Tournament Info Bar -->
                 <div class="mb-6 overflow-hidden bg-white shadow-sm sm:rounded-lg">
@@ -135,6 +170,12 @@ const maxRound = (bracket) => {
                                     }"
                                 >
                                     {{ formatLabel(tournament.status) }}
+                                </span>
+                                <span v-if="tournament.entry_fee" class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                                    ${{ tournament.entry_fee_dollars }} Entry
+                                </span>
+                                <span v-else class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                                    Free
                                 </span>
                                 <span class="text-sm text-gray-500">
                                     {{ tournament.players_count }}/{{ tournament.max_players }} players
@@ -426,7 +467,7 @@ const maxRound = (bracket) => {
                                     <tbody>
                                         <tr v-for="(standing, index) in standings" :key="standing.entry_id" class="border-b border-gray-100">
                                             <td class="py-2 pr-4 font-medium text-gray-500">{{ index + 1 }}</td>
-                                            <td class="py-2 pr-4">{{ standing.name }}</td>
+                                            <td class="py-2 pr-4">{{ standing.name }} <DuprBadge :dupr-id="standing.dupr_id" /></td>
                                             <td class="py-2 pr-4 text-center font-semibold text-green-600">{{ standing.wins }}</td>
                                             <td class="py-2 text-center text-red-600">{{ standing.losses }}</td>
                                         </tr>
@@ -441,7 +482,7 @@ const maxRound = (bracket) => {
                         <div class="p-6 text-center">
                             <div class="text-2xl font-bold text-yellow-800">Tournament Complete!</div>
                             <div v-for="entry in entries.filter(e => e.status === 'winner')" :key="entry.id" class="mt-2 text-lg text-yellow-700">
-                                Champion: {{ entry.user.name }}<template v-if="entry.partner"> & {{ entry.partner.name }}</template>
+                                Champion: {{ entry.user.name }} <DuprBadge :dupr-id="entry.user.dupr_id" /><template v-if="entry.partner"> & {{ entry.partner.name }} <DuprBadge :dupr-id="entry.partner.dupr_id" /></template>
                             </div>
                         </div>
                     </div>
@@ -462,9 +503,9 @@ const maxRound = (bracket) => {
                                             {{ entry.user.name.charAt(0).toUpperCase() }}
                                         </div>
                                         <span class="text-sm text-gray-900">
-                                            {{ entry.user.name }}
+                                            {{ entry.user.name }} <DuprBadge :dupr-id="entry.user.dupr_id" />
                                             <template v-if="entry.partner">
-                                                <span class="text-gray-400">&</span> {{ entry.partner.name }}
+                                                <span class="text-gray-400">&</span> {{ entry.partner.name }} <DuprBadge :dupr-id="entry.partner.dupr_id" />
                                             </template>
                                         </span>
                                     </li>
@@ -502,7 +543,7 @@ const maxRound = (bracket) => {
                                             :disabled="leaveForm.processing"
                                             class="w-full rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
                                         >
-                                            Leave Tournament
+                                            {{ tournament.entry_fee ? 'Refund & Leave' : 'Leave Tournament' }}
                                         </button>
                                     </div>
                                     <div v-else-if="canJoin" class="space-y-4">
@@ -528,7 +569,7 @@ const maxRound = (bracket) => {
                                                     v-model="partnerQuery"
                                                     type="text"
                                                     class="mt-1 block w-full"
-                                                    placeholder="Search by email address..."
+                                                    placeholder="Enter full email address..."
                                                     @focus="showResults = partnerResults.length > 0"
                                                 />
                                                 <div
@@ -548,8 +589,8 @@ const maxRound = (bracket) => {
                                                     </ul>
                                                 </div>
                                                 <p v-if="searching" class="mt-1 text-xs text-gray-400">Searching...</p>
-                                                <p v-else-if="partnerQuery.length > 0 && partnerQuery.length < 3" class="mt-1 text-xs text-gray-400">
-                                                    Type at least 3 characters...
+                                                <p v-else-if="partnerQuery.length > 0 && (partnerQuery.length < 5 || !partnerQuery.includes('@'))" class="mt-1 text-xs text-gray-400">
+                                                    Enter a full email address to find your partner...
                                                 </p>
                                             </div>
                                         </div>
@@ -561,6 +602,8 @@ const maxRound = (bracket) => {
                                         >
                                             <template v-if="tournament.players_count >= tournament.max_players">Tournament Full</template>
                                             <template v-else-if="tournament.is_doubles && !joinForm.partner_id">Select a Partner to Join</template>
+                                            <template v-else-if="tournament.entry_fee && tournament.is_doubles">Pay & Join Team — ${{ tournament.entry_fee_dollars }}</template>
+                                            <template v-else-if="tournament.entry_fee">Pay & Join — ${{ tournament.entry_fee_dollars }}</template>
                                             <template v-else>Join Tournament</template>
                                         </PrimaryButton>
                                     </div>
@@ -590,7 +633,7 @@ const maxRound = (bracket) => {
                                     'bg-gray-50 text-gray-700': entry.status === 'registered' || entry.status === 'checked_in',
                                 }"
                             >
-                                <span>{{ entry.user.name }}<template v-if="entry.partner"> & {{ entry.partner.name }}</template></span>
+                                <span>{{ entry.user.name }} <DuprBadge :dupr-id="entry.user.dupr_id" /><template v-if="entry.partner"> & {{ entry.partner.name }} <DuprBadge :dupr-id="entry.partner.dupr_id" /></template></span>
                             </div>
                         </div>
                     </div>

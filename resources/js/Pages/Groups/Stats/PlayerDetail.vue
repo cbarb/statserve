@@ -1,5 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DuprBadge from '@/Components/DuprBadge.vue';
 import StatCard from '@/Components/Stats/StatCard.vue';
 import TimeRangeSelector from '@/Components/Stats/TimeRangeSelector.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -29,7 +30,7 @@ const formatDiff = (val) => {
 
     <AuthenticatedLayout :back-href="route('groups.stats', group.slug)">
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-gray-800">{{ player.name }}</h2>
+            <h2 class="text-xl font-semibold leading-tight text-gray-800">{{ player.name }} <DuprBadge :dupr-id="player.dupr_id" /></h2>
         </template>
 
         <div class="py-12">
@@ -83,7 +84,7 @@ const formatDiff = (val) => {
                                 {{ bestPartner.partner_name.charAt(0).toUpperCase() }}
                             </div>
                             <div>
-                                <p class="font-medium text-gray-900">{{ bestPartner.partner_name }}</p>
+                                <p class="font-medium text-gray-900">{{ bestPartner.partner_name }} <DuprBadge :dupr-id="bestPartner.partner_dupr_id" /></p>
                                 <p class="text-sm text-gray-500">
                                     {{ bestPartner.games }} games together &middot;
                                     {{ bestPartner.wins }}W - {{ bestPartner.losses }}L &middot;

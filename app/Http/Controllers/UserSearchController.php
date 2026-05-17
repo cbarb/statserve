@@ -11,13 +11,13 @@ class UserSearchController extends Controller
     public function search(Request $request): JsonResponse
     {
         $request->validate([
-            'q' => ['required', 'string', 'min:3'],
+            'q' => ['required', 'string', 'min:5', 'email'],
         ]);
 
-        $users = User::where('email', 'like', $request->q . '%')
+        $users = User::where('email', $request->q)
             ->where('id', '!=', $request->user()->id)
             ->select('id', 'name', 'email')
-            ->limit(10)
+            ->limit(1)
             ->get();
 
         return response()->json($users);

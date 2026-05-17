@@ -30,7 +30,7 @@ class Group extends Model
                 $group->slug = Str::slug($group->name) . '-' . Str::lower(Str::random(6));
             }
             if (empty($group->invite_code)) {
-                $group->invite_code = Str::lower(Str::random(8));
+                $group->invite_code = Str::lower(Str::random(16));
             }
         });
     }
@@ -111,7 +111,7 @@ class Group extends Model
 
     public function regenerateInviteCode(): void
     {
-        $this->update(['invite_code' => Str::lower(Str::random(8))]);
+        $this->update(['invite_code' => Str::lower(Str::random(16))]);
     }
 
     public function transferOwnership(User $newOwner): void

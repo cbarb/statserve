@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Notifications\TournamentJoinedNotification;
 use DomainException;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Log;
+use Laravel\Cashier\Checkout;
 
 class TournamentService
 {
@@ -48,6 +50,7 @@ class TournamentService
             'state' => $data['state'] ?? null,
             'latitude' => $coords['latitude'] ?? null,
             'longitude' => $coords['longitude'] ?? null,
+            'entry_fee' => $data['entry_fee'] ?? null,
             'is_public' => true,
             'status' => TournamentStatus::Registration,
             'registration_opens_at' => $data['registration_opens_at'] ?? null,
@@ -102,6 +105,121 @@ class TournamentService
 
     public function join(User $user, Tournament $tournament, ?int $partnerId = null): TournamentEntry
     {
+        $partnerId = $this->validateJoin($user, $tournament, $partnerId);
+
+        $entry = TournamentEntry::create([
+            'tournament_id' => $tournament->id,
+            'user_id' => $user->id,
+            'partner_id' => $partnerId,
+            'status' => TournamentEntryStatus::Registered,
+        ]);
+
+        $user->notify(new TournamentJoinedNotification($tournament));
+
+        if ($partnerId) {
+            User::find($partnerId)->notify(new TournamentJoinedNotification($tournament));
+        }
+
+        return $entry;
+    }
+
+    public function createEntryCheckout(User $user, Tournament $tournament, ?int $partnerId = null): string
+    {
+        $partnerId = $this->validateJoin($user, $tournament, $partnerId);
+
+        return $user->checkout([
+            [
+                'price_data' => [
+                    'currency' => 'usd',
+                    'product_data' => ['name' => "Entry: {$tournament->name}"],
+                    'unit_amount' => $tournament->entry_fee,
+                ],
+                'quantity' => 1,
+            ],
+        ], [
+            'success_url' => route('tournaments.show', $tournament) . '?payment=success&session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('tournaments.show', $tournament) . '?payment=cancelled',
+            'metadata' => [
+                'type' => 'tournament_entry',
+                'tournament_id' => (string) $tournament->id,
+                'user_id' => (string) $user->id,
+                'partner_id' => (string) ($partnerId ?? ''),
+            ],
+        ])->url;
+    }
+
+    public function completeEntryPayment(array $session): ?TournamentEntry
+    {
+        $metadata = $session['metadata'] ?? [];
+        $tournamentId = $metadata['tournament_id'] ?? null;
+        $userId = $metadata['user_id'] ?? null;
+        $partnerId = !empty($metadata['partner_id']) ? (int) $metadata['partner_id'] : null;
+
+        if (!$tournamentId || !$userId) {
+            Log::warning('Tournament entry payment: missing metadata', $metadata);
+            return null;
+        }
+
+        $tournament = Tournament::find($tournamentId);
+        $user = User::find($userId);
+
+        if (!$tournament || !$user) {
+            Log::warning('Tournament entry payment: tournament or user not found', $metadata);
+            return null;
+        }
+
+        if ($tournament->isRegistered($user)) {
+            Log::info('Tournament entry payment: user already registered (idempotent)', $metadata);
+            return null;
+        }
+
+        $paymentIntentId = $session['payment_intent'] ?? null;
+
+        $entry = TournamentEntry::create([
+            'tournament_id' => $tournament->id,
+            'user_id' => $user->id,
+            'partner_id' => $partnerId,
+            'status' => TournamentEntryStatus::Registered,
+            'stripe_payment_intent_id' => $paymentIntentId,
+            'amount_paid' => $tournament->entry_fee,
+        ]);
+
+        $user->notify(new TournamentJoinedNotification($tournament));
+
+        if ($partnerId) {
+            User::find($partnerId)?->notify(new TournamentJoinedNotification($tournament));
+        }
+
+        Log::info('Tournament entry payment completed', [
+            'tournament_id' => $tournament->id,
+            'user_id' => $user->id,
+            'amount' => $tournament->entry_fee,
+        ]);
+
+        return $entry;
+    }
+
+    public function leave(User $user, Tournament $tournament): void
+    {
+        $entry = $tournament->entries()->where('user_id', $user->id)->first();
+
+        if (!$entry) {
+            throw new DomainException('You are not registered for this tournament.');
+        }
+
+        if ($entry->status !== TournamentEntryStatus::Registered) {
+            throw new DomainException('You cannot leave the tournament at this stage.');
+        }
+
+        if ($entry->stripe_payment_intent_id) {
+            $user->refund($entry->stripe_payment_intent_id);
+        }
+
+        $entry->delete();
+    }
+
+    private function validateJoin(User $user, Tournament $tournament, ?int $partnerId): ?int
+    {
         if ($tournament->status !== TournamentStatus::Registration) {
             throw new DomainException('This tournament is not accepting registrations.');
         }
@@ -136,34 +254,6 @@ class TournamentService
             $partnerId = null;
         }
 
-        $entry = TournamentEntry::create([
-            'tournament_id' => $tournament->id,
-            'user_id' => $user->id,
-            'partner_id' => $partnerId,
-            'status' => TournamentEntryStatus::Registered,
-        ]);
-
-        $user->notify(new TournamentJoinedNotification($tournament));
-
-        if ($partnerId) {
-            User::find($partnerId)->notify(new TournamentJoinedNotification($tournament));
-        }
-
-        return $entry;
-    }
-
-    public function leave(User $user, Tournament $tournament): void
-    {
-        $entry = $tournament->entries()->where('user_id', $user->id)->first();
-
-        if (!$entry) {
-            throw new DomainException('You are not registered for this tournament.');
-        }
-
-        if ($entry->status !== TournamentEntryStatus::Registered) {
-            throw new DomainException('You cannot leave the tournament at this stage.');
-        }
-
-        $entry->delete();
+        return $partnerId;
     }
 }

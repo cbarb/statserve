@@ -49,12 +49,13 @@ class PlayController extends Controller
         $this->authorize('view', $group);
 
         $members = $group->members()
-            ->select('users.id', 'users.name', 'users.avatar_url')
+            ->select('users.id', 'users.name', 'users.avatar_url', 'users.dupr_id')
             ->get()
             ->map(fn ($m) => [
                 'id' => $m->id,
                 'name' => $m->name,
                 'avatar_url' => $m->avatar_url,
+                'dupr_id' => $m->dupr_id,
             ]);
 
         $activeSession = $group->sessions()
@@ -100,12 +101,13 @@ class PlayController extends Controller
         $session->load(['matches.players.user']);
 
         $players = User::whereIn('id', $session->player_ids)
-            ->select('id', 'name', 'avatar_url')
+            ->select('id', 'name', 'avatar_url', 'dupr_id')
             ->get()
             ->map(fn ($u) => [
                 'id' => $u->id,
                 'name' => $u->name,
                 'avatar_url' => $u->avatar_url,
+                'dupr_id' => $u->dupr_id,
             ]);
 
         $nextAssignment = $session->status === SessionStatus::Active

@@ -9,7 +9,10 @@
       "Bash(./vendor/bin/sail artisan queue:work:*)",
       "Bash(./vendor/bin/sail artisan tinker:*)",
       "Bash(./vendor/bin/sail artisan:*)",
-      "Bash(php -l:*)"
+      "Bash(php -l:*)",
+      "Bash(php -m:*)",
+      "Bash(./vendor/bin/sail up:*)",
+      "WebSearch"
     ]
   }
 }

@@ -70,7 +70,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // User search
-    Route::get('/users/search', [UserSearchController::class, 'search'])->name('users.search');
+    Route::get('/users/search', [UserSearchController::class, 'search'])->middleware('throttle:search')->name('users.search');
 
     // Group CRUD
     Route::get('/groups', [GroupController::class, 'index'])->name('groups.index');
@@ -89,7 +89,7 @@ Route::middleware('auth')->group(function () {
 
     // Group invites
     Route::post('/groups/{group}/invite/regenerate', [GroupInviteController::class, 'regenerate'])->name('groups.invite.regenerate');
-    Route::post('/join/{code}', [GroupInviteController::class, 'join'])->name('groups.join');
+    Route::post('/join/{code}', [GroupInviteController::class, 'join'])->middleware('throttle:sensitive')->name('groups.join');
 
     // Stats
     Route::get('/groups/{group}/stats', [StatsController::class, 'groupStats'])->name('groups.stats');
@@ -109,7 +109,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/billing/resume-boost/{group}', [BillingController::class, 'resumeBoost'])->name('billing.resume-boost');
 
     // Tournaments
-    Route::get('/tournaments', [TournamentController::class, 'index'])->name('tournaments.index');
+    Route::get('/tournaments', [TournamentController::class, 'index'])->middleware('throttle:search')->name('tournaments.index');
     Route::get('/tournaments/create', [TournamentController::class, 'create'])->name('tournaments.create');
     Route::post('/tournaments', [TournamentController::class, 'store'])->name('tournaments.store');
     Route::get('/tournaments/{tournament}', [TournamentController::class, 'show'])->name('tournaments.show');

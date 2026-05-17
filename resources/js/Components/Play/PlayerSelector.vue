@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import DuprBadge from '@/Components/DuprBadge.vue';
 
 const props = defineProps({
     members: Array,
@@ -56,7 +57,7 @@ function toggleAll() {
                      :class="modelValue.includes(member.id) ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-600'">
                     {{ member.name.charAt(0).toUpperCase() }}
                 </div>
-                <span class="truncate text-sm font-medium text-gray-900">{{ member.name }}</span>
+                <span class="truncate text-sm font-medium text-gray-900">{{ member.name }} <DuprBadge :dupr-id="member.dupr_id" /></span>
             </button>
         </div>
         <p v-if="modelValue.length < minCount" class="mt-2 text-sm text-red-600">

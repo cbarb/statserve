@@ -25,6 +25,8 @@ class Tournament extends Model
         'max_players',
         'min_rating',
         'max_rating',
+        'entry_fee',
+        'platform_fee_percent',
         'status',
         'address',
         'city',
@@ -43,11 +45,18 @@ class Tournament extends Model
             'format' => MatchFormat::class,
             'bracket_type' => BracketType::class,
             'status' => TournamentStatus::class,
+            'entry_fee' => 'integer',
+            'platform_fee_percent' => 'integer',
             'is_public' => 'boolean',
             'registration_opens_at' => 'datetime',
             'registration_closes_at' => 'datetime',
             'starts_at' => 'datetime',
         ];
+    }
+
+    public function isFree(): bool
+    {
+        return !$this->entry_fee;
     }
 
     public function scopeNearby(Builder $query, float $lat, float $lng, float $radiusMiles = 50): Builder

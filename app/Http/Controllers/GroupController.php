@@ -62,13 +62,14 @@ class GroupController extends Controller
         $this->authorize('view', $group);
 
         $members = $group->members()
-            ->select('users.id', 'users.name', 'users.email', 'users.avatar_url')
+            ->select('users.id', 'users.name', 'users.email', 'users.avatar_url', 'users.dupr_id')
             ->get()
             ->map(fn ($member) => [
                 'id' => $member->id,
                 'name' => $member->name,
                 'email' => $member->email,
                 'avatar_url' => $member->avatar_url,
+                'dupr_id' => $member->dupr_id,
                 'role' => $member->pivot->role,
                 'joined_at' => $member->pivot->joined_at,
             ]);
@@ -77,11 +78,13 @@ class GroupController extends Controller
 
         $statsService = app(StatsService::class);
         $leaderboard = $statsService->groupLeaderboard($group->id);
-        $membersMap = $group->members()->pluck('users.name', 'users.id')->toArray();
+        $membersData = $group->members()->select('users.id', 'users.name', 'users.dupr_id')->get()->keyBy('id');
 
         // Attach names and take top 5 for preview
         foreach ($leaderboard as &$row) {
-            $row['name'] = $membersMap[$row['user_id']] ?? 'Unknown';
+            $member = $membersData[$row['user_id']] ?? null;
+            $row['name'] = $member?->name ?? 'Unknown';
+            $row['dupr_id'] = $member?->dupr_id;
         }
         $leaderboardPreview = array_slice($leaderboard, 0, 5);
 

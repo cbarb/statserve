@@ -19,6 +19,7 @@ const user = usePage().props.auth.user;
 const form = useForm({
     name: user.name,
     email: user.email,
+    dupr_id: user.dupr_id ?? '',
 });
 </script>
 
@@ -67,6 +68,23 @@ const form = useForm({
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
+            </div>
+
+            <div>
+                <InputLabel for="dupr_id" value="DUPR ID (optional)" />
+
+                <TextInput
+                    id="dupr_id"
+                    type="text"
+                    class="mt-1 block w-full"
+                    v-model="form.dupr_id"
+                    autocomplete="off"
+                    placeholder="e.g. 12345678"
+                />
+
+                <p class="mt-1 text-xs text-gray-500">Your DUPR rating ID from dupr.com</p>
+
+                <InputError class="mt-2" :message="form.errors.dupr_id" />
             </div>
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">

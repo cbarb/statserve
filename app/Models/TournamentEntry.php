@@ -17,6 +17,8 @@ class TournamentEntry extends Model
         'partner_id',
         'seed',
         'status',
+        'stripe_payment_intent_id',
+        'amount_paid',
     ];
 
     protected function casts(): array

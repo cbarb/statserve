@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DuprBadge from '@/Components/DuprBadge.vue';
 import RoleBadge from '@/Components/RoleBadge.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -130,7 +131,7 @@ const toggleRole = (member) => {
                                         {{ member.name.charAt(0).toUpperCase() }}
                                     </div>
                                     <div>
-                                        <p class="font-medium text-gray-900">{{ member.name }}</p>
+                                        <p class="font-medium text-gray-900">{{ member.name }} <DuprBadge :dupr-id="member.dupr_id" /></p>
                                         <p class="text-sm text-gray-500">Joined {{ new Date(member.joined_at).toLocaleDateString() }}</p>
                                     </div>
                                     <RoleBadge :role="member.role" />
@@ -180,7 +181,7 @@ const toggleRole = (member) => {
                                         :class="row.user_id === $page.props.auth.user.id ? 'bg-indigo-50' : ''"
                                     >
                                         <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ i + 1 }}</td>
-                                        <td class="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">{{ row.name }}</td>
+                                        <td class="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">{{ row.name }} <DuprBadge :dupr-id="row.dupr_id" /></td>
                                         <td class="whitespace-nowrap px-3 py-2 text-sm text-gray-500">{{ row.games }}</td>
                                         <td class="whitespace-nowrap px-3 py-2 text-sm font-medium text-gray-900">{{ row.win_rate }}%</td>
                                     </tr>

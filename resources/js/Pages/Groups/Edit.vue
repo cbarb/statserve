@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import DuprBadge from '@/Components/DuprBadge.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -155,7 +156,7 @@ const deleteGroup = () => {
                 >
                     <option value="">Select a member...</option>
                     <option v-for="member in nonOwnerMembers" :key="member.id" :value="member.id">
-                        {{ member.name }}
+                        {{ member.name }}{{ member.dupr_id ? ` (DUPR: ${member.dupr_id})` : '' }}
                     </option>
                 </select>
                 <InputError :message="transferForm.errors.new_owner_id" class="mt-2" />

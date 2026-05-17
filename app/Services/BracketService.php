@@ -306,7 +306,7 @@ class BracketService
 
     private function getRoundRobinStandings(Tournament $tournament): array
     {
-        $entries = $tournament->entries()->with(['user:id,name', 'partner:id,name'])->get();
+        $entries = $tournament->entries()->with(['user:id,name,dupr_id', 'partner:id,name,dupr_id'])->get();
         $rounds = $tournament->rounds()->get();
 
         $stats = [];
@@ -314,6 +314,8 @@ class BracketService
             $stats[$entry->id] = [
                 'entry_id' => $entry->id,
                 'name' => $entry->user->name . ($entry->partner ? ' & ' . $entry->partner->name : ''),
+                'dupr_id' => $entry->user->dupr_id,
+                'partner_dupr_id' => $entry->partner?->dupr_id,
                 'wins' => 0,
                 'losses' => 0,
             ];
@@ -340,11 +342,13 @@ class BracketService
     private function getEliminationStandings(Tournament $tournament): array
     {
         $entries = $tournament->entries()
-            ->with(['user:id,name', 'partner:id,name'])
+            ->with(['user:id,name,dupr_id', 'partner:id,name,dupr_id'])
             ->get()
             ->map(fn ($entry) => [
                 'entry_id' => $entry->id,
                 'name' => $entry->user->name . ($entry->partner ? ' & ' . $entry->partner->name : ''),
+                'dupr_id' => $entry->user->dupr_id,
+                'partner_dupr_id' => $entry->partner?->dupr_id,
                 'status' => $entry->status->value,
                 'seed' => $entry->seed,
             ])

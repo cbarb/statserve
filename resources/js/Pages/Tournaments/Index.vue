@@ -94,6 +94,12 @@ const formatLabel = (value) => {
                                 <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
                                     {{ formatLabel(tournament.bracket_type) }}
                                 </span>
+                                <span v-if="tournament.entry_fee" class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                                    ${{ (tournament.entry_fee / 100).toFixed(2) }}
+                                </span>
+                                <span v-else class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                                    Free
+                                </span>
                             </div>
                             <div class="mt-3 flex items-center justify-between text-sm text-gray-500">
                                 <span>{{ tournament.players_count }}/{{ tournament.max_players }} spots</span>
@@ -124,14 +130,12 @@ const formatLabel = (value) => {
                             :href="link.url"
                             class="rounded-md px-3 py-2 text-sm"
                             :class="link.active ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
-                            v-html="link.label"
                             preserve-state
-                        />
+                        >{{ link.label.replace(/&laquo;/g, '\u00AB').replace(/&raquo;/g, '\u00BB') }}</Link>
                         <span
                             v-else
                             class="rounded-md bg-white px-3 py-2 text-sm text-gray-400"
-                            v-html="link.label"
-                        />
+                        >{{ link.label.replace(/&laquo;/g, '\u00AB').replace(/&raquo;/g, '\u00BB') }}</span>
                     </template>
                 </div>
             </div>

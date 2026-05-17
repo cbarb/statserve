@@ -22,6 +22,7 @@ class User extends Authenticatable
         'password',
         'avatar_url',
         'timezone',
+        'dupr_id',
     ];
 
     protected $hidden = [

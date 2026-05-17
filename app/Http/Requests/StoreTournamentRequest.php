@@ -28,7 +28,8 @@ class StoreTournamentRequest extends FormRequest
             'state' => ['required', 'string', 'max:100'],
             'starts_at' => ['required', 'date', 'after:now'],
             'registration_opens_at' => ['nullable', 'date', 'before:starts_at'],
-            'registration_closes_at' => ['nullable', 'date', 'before:starts_at'],
+            'registration_closes_at' => ['nullable', 'date', 'before:starts_at', 'after_or_equal:registration_opens_at'],
+            'entry_fee' => ['nullable', 'integer', 'min:100', 'max:100000'],
             'min_rating' => ['nullable', 'integer'],
             'max_rating' => ['nullable', 'integer', 'gte:min_rating'],
         ];

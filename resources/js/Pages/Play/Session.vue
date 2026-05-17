@@ -4,6 +4,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import DangerButton from '@/Components/DangerButton.vue';
+import DuprBadge from '@/Components/DuprBadge.vue';
 import CourtView from '@/Components/Play/CourtView.vue';
 import MatchHistoryCard from '@/Components/Play/MatchHistoryCard.vue';
 import ConfirmationModal from '@/Components/ConfirmationModal.vue';
@@ -173,7 +174,7 @@ function getPlayerName(userId) {
 const playerStats = computed(() => {
     const stats = {};
     props.players.forEach(p => {
-        stats[p.id] = { name: p.name, wins: 0, losses: 0, played: 0 };
+        stats[p.id] = { name: p.name, dupr_id: p.dupr_id, wins: 0, losses: 0, played: 0 };
     });
     props.matches.forEach(m => {
         m.players.forEach(p => {
@@ -352,7 +353,7 @@ const sittingOutNames = computed(() => sittingOut.value.map(id => getPlayerName(
                                 <h4 class="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Player Results</h4>
                                 <div class="divide-y divide-gray-100">
                                     <div v-for="stat in playerStats" :key="stat.name" class="flex items-center justify-between py-2">
-                                        <span class="font-medium text-gray-900">{{ stat.name }}</span>
+                                        <span class="font-medium text-gray-900">{{ stat.name }} <DuprBadge :dupr-id="stat.dupr_id" /></span>
                                         <span class="text-sm">
                                             <span class="font-semibold text-green-700">{{ stat.wins }}W</span>
                                             <span class="mx-1 text-gray-300">-</span>
