@@ -76,7 +76,7 @@ const toggleRole = (member) => {
 
     <AuthenticatedLayout :back-href="route('groups.index')">
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div class="flex items-center gap-3">
                     <h2 class="text-xl font-semibold leading-tight text-gray-800">{{ group.name }}</h2>
                     <RoleBadge :role="userRole" />
