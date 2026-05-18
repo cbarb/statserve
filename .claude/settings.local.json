@@ -12,7 +12,9 @@
       "Bash(php -l:*)",
       "Bash(php -m:*)",
       "Bash(./vendor/bin/sail up:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(cp -r /Users/carlos_mbpro/Documents/pick-a-ball/public/img /Users/carlos_mbpro/Documents/statserve/public/img)",
+      "Bash(cp /Users/carlos_mbpro/Documents/pick-a-ball/public/manifest.json /Users/carlos_mbpro/Documents/statserve/public/manifest.json)"
     ]
   }
 }
