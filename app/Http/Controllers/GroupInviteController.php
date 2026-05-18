@@ -18,6 +18,10 @@ class GroupInviteController extends Controller
 
         $isMember = $request->user() ? $group->isMember($request->user()) : false;
 
+        if (! $request->user()) {
+            session()->put('url.intended', $request->url());
+        }
+
         return Inertia::render('Groups/Join', [
             'group' => [
                 'name' => $group->name,
