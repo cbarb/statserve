@@ -74,12 +74,10 @@ class RotationService
         $selectedIds = $sorted->take($totalActive)->values();
         $sittingOut = $allPlayerIds->diff($selectedIds)->values()->toArray();
 
-        // Step 3: Pick the pairing used longest ago, hard-blocking last game's split
-        $splitRecency = $this->buildSplitRecency($matches);
-        $forbiddenSplit = $this->lastMatchSplitKey($matches);
-        $totalGames = $matches->count();
+        // Step 3: Build partner/opponent history matrices, then pick fairest split
+        [$partnerCounts, $oppCounts] = $this->buildPairingMatrices($matches);
 
-        $split = $this->findBestSplit($selectedIds->toArray(), $playersPerTeam, $splitRecency, $forbiddenSplit, $totalGames);
+        $split = $this->findFairestSplit($selectedIds->toArray(), $playersPerTeam, $partnerCounts, $oppCounts);
 
         // Step 4: If no valid split from selected players, try other player groups
         if ($split === null && $allPlayerIds->count() > $totalActive) {
@@ -87,7 +85,7 @@ class RotationService
             shuffle($combos);
 
             foreach ($combos as $combo) {
-                $split = $this->findBestSplit($combo, $playersPerTeam, $splitRecency, $forbiddenSplit, $totalGames);
+                $split = $this->findFairestSplit($combo, $playersPerTeam, $partnerCounts, $oppCounts);
                 if ($split !== null) {
                     $selectedIds = collect($combo);
                     $sittingOut = $allPlayerIds->diff($selectedIds)->values()->toArray();
@@ -120,34 +118,54 @@ class RotationService
         ];
     }
 
-    // Returns [splitKey => gameIndex] — higher index means more recently used.
-    private function buildSplitRecency(Collection $matches): array
+    // Returns [partnerCounts, oppCounts] where each is a nested array [id][id] => int.
+    private function buildPairingMatrices(Collection $matches): array
     {
-        $recency = [];
-        foreach ($matches->values() as $i => $match) {
-            $key = $this->splitKey($match);
-            $recency[$key] = $i;
+        $partnerCounts = [];
+        $oppCounts = [];
+
+        $inc = function (array &$matrix, $a, $b): void {
+            $matrix[$a][$b] = ($matrix[$a][$b] ?? 0) + 1;
+            $matrix[$b][$a] = ($matrix[$b][$a] ?? 0) + 1;
+        };
+
+        foreach ($matches as $match) {
+            $t1 = $match->players->where('team', 1)->pluck('user_id')->values()->toArray();
+            $t2 = $match->players->where('team', 2)->pluck('user_id')->values()->toArray();
+
+            foreach ($t1 as $i => $a) {
+                foreach ($t1 as $j => $b) {
+                    if ($i < $j) {
+                        $inc($partnerCounts, $a, $b);
+                    }
+                }
+            }
+            foreach ($t2 as $i => $a) {
+                foreach ($t2 as $j => $b) {
+                    if ($i < $j) {
+                        $inc($partnerCounts, $a, $b);
+                    }
+                }
+            }
+            foreach ($t1 as $a) {
+                foreach ($t2 as $b) {
+                    $inc($oppCounts, $a, $b);
+                }
+            }
         }
-        return $recency;
+
+        return [$partnerCounts, $oppCounts];
     }
 
-    // Returns the split key of the most recent match, or null if no matches yet.
-    private function lastMatchSplitKey(Collection $matches): ?string
-    {
-        $last = $matches->last();
-        return $last ? $this->splitKey($last) : null;
-    }
-
-    // Scores every possible split and returns the one used longest ago.
-    // Hard-blocks $forbiddenSplit (last game's pairing).
-    // Score: never used = highest, older use = higher than recent use.
-    private function findBestSplit(array $playerIds, int $playersPerTeam, array $splitRecency, ?string $forbiddenSplit, int $totalGames): ?array
+    // Scores every possible split by total partner + opponent pair history.
+    // Lower score = fresher pairings = fairer. Returns the minimum-cost split.
+    private function findFairestSplit(array $playerIds, int $playersPerTeam, array $partnerCounts, array $oppCounts): ?array
     {
         $team1Combos = $this->combinations($playerIds, $playersPerTeam);
         shuffle($team1Combos);
 
         $bestSplit = null;
-        $bestScore = -1;
+        $bestCost = PHP_INT_MAX;
 
         foreach ($team1Combos as $team1) {
             $team2 = array_values(array_diff($playerIds, $team1));
@@ -155,20 +173,25 @@ class RotationService
                 continue;
             }
 
-            $t1Key = collect($team1)->sort()->values()->implode(',');
-            $t2Key = collect($team2)->sort()->values()->implode(',');
-            $key = $t1Key < $t2Key ? "{$t1Key}|{$t2Key}" : "{$t2Key}|{$t1Key}";
+            $cost = 0;
 
-            if ($key === $forbiddenSplit) {
-                continue;
+            // Partner costs: penalise pairs that have been teammates before
+            foreach ($this->pairs($team1) as [$a, $b]) {
+                $cost += $partnerCounts[$a][$b] ?? 0;
+            }
+            foreach ($this->pairs($team2) as [$a, $b]) {
+                $cost += $partnerCounts[$a][$b] ?? 0;
             }
 
-            // Never used scores highest; older uses score higher than recent ones
-            $lastUsedAt = $splitRecency[$key] ?? null;
-            $score = $lastUsedAt === null ? $totalGames + 1 : ($totalGames - $lastUsedAt);
+            // Opponent costs: penalise cross-team pairs that have faced each other before
+            foreach ($team1 as $a) {
+                foreach ($team2 as $b) {
+                    $cost += $oppCounts[$a][$b] ?? 0;
+                }
+            }
 
-            if ($score > $bestScore) {
-                $bestScore = $score;
+            if ($cost < $bestCost) {
+                $bestCost = $cost;
                 $bestSplit = [$team1, $team2];
             }
         }
@@ -176,11 +199,16 @@ class RotationService
         return $bestSplit;
     }
 
-    private function splitKey($match): string
+    // Returns all unique pairs from an array as [[a,b], ...].
+    private function pairs(array $arr): array
     {
-        $t1 = $match->players->where('team', 1)->pluck('user_id')->sort()->values()->implode(',');
-        $t2 = $match->players->where('team', 2)->pluck('user_id')->sort()->values()->implode(',');
-        return $t1 < $t2 ? "{$t1}|{$t2}" : "{$t2}|{$t1}";
+        $pairs = [];
+        for ($i = 0; $i < count($arr); $i++) {
+            for ($j = $i + 1; $j < count($arr); $j++) {
+                $pairs[] = [$arr[$i], $arr[$j]];
+            }
+        }
+        return $pairs;
     }
 
     private function combinations(array $arr, int $k): array
