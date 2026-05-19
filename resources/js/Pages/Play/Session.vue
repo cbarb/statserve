@@ -133,6 +133,9 @@ function saveAndNext() {
             phase.value = 'court';
             team1Score.value = 0;
             team2Score.value = 0;
+            team1.value = props.nextAssignment?.team_1 || [];
+            team2.value = props.nextAssignment?.team_2 || [];
+            sittingOut.value = props.nextAssignment?.sitting_out || [];
         },
     });
 }

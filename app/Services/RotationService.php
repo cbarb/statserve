@@ -50,7 +50,7 @@ class RotationService
     private function randomAssignment(GameSession $session): array
     {
         $allPlayerIds = collect($session->player_ids);
-        $matches = $session->matches()->with('players')->get();
+        $matches = $session->matches()->with('players')->orderBy('played_at')->get();
         $playersPerTeam = $session->format === MatchFormat::Doubles ? 2 : 1;
         $totalActive = $playersPerTeam * 2;
 
@@ -74,17 +74,20 @@ class RotationService
         $selectedIds = $sorted->take($totalActive)->values();
         $sittingOut = $allPlayerIds->diff($selectedIds)->values()->toArray();
 
-        // Step 3: Generate a team split not yet used
-        $usedSplits = $this->getUsedTeamSplits($matches, $playersPerTeam);
-        $split = $this->findUnusedSplit($selectedIds->toArray(), $playersPerTeam, $usedSplits);
+        // Step 3: Pick the pairing used longest ago, hard-blocking last game's split
+        $splitRecency = $this->buildSplitRecency($matches);
+        $forbiddenSplit = $this->lastMatchSplitKey($matches);
+        $totalGames = $matches->count();
 
-        // Step 4: If all splits exhausted, try different player groups
+        $split = $this->findBestSplit($selectedIds->toArray(), $playersPerTeam, $splitRecency, $forbiddenSplit, $totalGames);
+
+        // Step 4: If no valid split from selected players, try other player groups
         if ($split === null && $allPlayerIds->count() > $totalActive) {
             $combos = $this->combinations($allPlayerIds->toArray(), $totalActive);
             shuffle($combos);
 
             foreach ($combos as $combo) {
-                $split = $this->findUnusedSplit($combo, $playersPerTeam, $usedSplits);
+                $split = $this->findBestSplit($combo, $playersPerTeam, $splitRecency, $forbiddenSplit, $totalGames);
                 if ($split !== null) {
                     $selectedIds = collect($combo);
                     $sittingOut = $allPlayerIds->diff($selectedIds)->values()->toArray();
@@ -93,7 +96,7 @@ class RotationService
             }
         }
 
-        // Fallback: just randomize
+        // Fallback: randomize
         if ($split === null) {
             $ids = $selectedIds->shuffle()->values();
             $split = [
@@ -117,23 +120,34 @@ class RotationService
         ];
     }
 
-    private function getUsedTeamSplits(Collection $matches, int $playersPerTeam): array
+    // Returns [splitKey => gameIndex] — higher index means more recently used.
+    private function buildSplitRecency(Collection $matches): array
     {
-        $splits = [];
-        foreach ($matches as $match) {
-            $t1 = $match->players->where('team', 1)->pluck('user_id')->sort()->values()->implode(',');
-            $t2 = $match->players->where('team', 2)->pluck('user_id')->sort()->values()->implode(',');
-            $key = $t1 < $t2 ? "{$t1}|{$t2}" : "{$t2}|{$t1}";
-            $splits[$key] = true;
+        $recency = [];
+        foreach ($matches->values() as $i => $match) {
+            $key = $this->splitKey($match);
+            $recency[$key] = $i;
         }
-
-        return $splits;
+        return $recency;
     }
 
-    private function findUnusedSplit(array $playerIds, int $playersPerTeam, array $usedSplits): ?array
+    // Returns the split key of the most recent match, or null if no matches yet.
+    private function lastMatchSplitKey(Collection $matches): ?string
+    {
+        $last = $matches->last();
+        return $last ? $this->splitKey($last) : null;
+    }
+
+    // Scores every possible split and returns the one used longest ago.
+    // Hard-blocks $forbiddenSplit (last game's pairing).
+    // Score: never used = highest, older use = higher than recent use.
+    private function findBestSplit(array $playerIds, int $playersPerTeam, array $splitRecency, ?string $forbiddenSplit, int $totalGames): ?array
     {
         $team1Combos = $this->combinations($playerIds, $playersPerTeam);
         shuffle($team1Combos);
+
+        $bestSplit = null;
+        $bestScore = -1;
 
         foreach ($team1Combos as $team1) {
             $team2 = array_values(array_diff($playerIds, $team1));
@@ -145,12 +159,28 @@ class RotationService
             $t2Key = collect($team2)->sort()->values()->implode(',');
             $key = $t1Key < $t2Key ? "{$t1Key}|{$t2Key}" : "{$t2Key}|{$t1Key}";
 
-            if (!isset($usedSplits[$key])) {
-                return [$team1, $team2];
+            if ($key === $forbiddenSplit) {
+                continue;
+            }
+
+            // Never used scores highest; older uses score higher than recent ones
+            $lastUsedAt = $splitRecency[$key] ?? null;
+            $score = $lastUsedAt === null ? $totalGames + 1 : ($totalGames - $lastUsedAt);
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestSplit = [$team1, $team2];
             }
         }
 
-        return null;
+        return $bestSplit;
+    }
+
+    private function splitKey($match): string
+    {
+        $t1 = $match->players->where('team', 1)->pluck('user_id')->sort()->values()->implode(',');
+        $t2 = $match->players->where('team', 2)->pluck('user_id')->sort()->values()->implode(',');
+        return $t1 < $t2 ? "{$t1}|{$t2}" : "{$t2}|{$t1}";
     }
 
     private function combinations(array $arr, int $k): array
