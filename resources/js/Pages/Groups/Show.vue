@@ -159,9 +159,14 @@ const toggleRole = (member) => {
                     <div class="p-6">
                         <div class="flex items-center justify-between">
                             <h3 class="text-lg font-medium text-gray-900">Leaderboard</h3>
-                            <Link :href="route('groups.stats', group.slug)" class="text-sm text-indigo-600 hover:text-indigo-500">
-                                View Full Stats
-                            </Link>
+                            <div class="flex items-center gap-4">
+                                <Link :href="route('groups.matches', group.slug)" class="text-sm text-indigo-600 hover:text-indigo-500">
+                                    Match History
+                                </Link>
+                                <Link :href="route('groups.stats', group.slug)" class="text-sm text-indigo-600 hover:text-indigo-500">
+                                    View Full Stats
+                                </Link>
+                            </div>
                         </div>
 
                         <div v-if="leaderboardPreview.length" class="mt-4">

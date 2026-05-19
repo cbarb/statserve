@@ -4,6 +4,7 @@ use App\Http\Controllers\BadgeController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\GroupController;
 use App\Http\Controllers\GroupInviteController;
+use App\Http\Controllers\GroupMatchController;
 use App\Http\Controllers\GroupMemberController;
 use App\Http\Controllers\PlayController;
 use App\Http\Controllers\ProfileController;
@@ -92,6 +93,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/join/{code}', [GroupInviteController::class, 'join'])->middleware('throttle:sensitive')->name('groups.join');
 
     // Stats
+    Route::get('/groups/{group}/matches', [GroupMatchController::class, 'index'])->name('groups.matches');
+    Route::patch('/groups/{group}/matches/{match}', [GroupMatchController::class, 'update'])->name('groups.matches.update');
+    Route::delete('/groups/{group}/matches/{match}', [GroupMatchController::class, 'destroy'])->name('groups.matches.destroy');
+
     Route::get('/groups/{group}/stats', [StatsController::class, 'groupStats'])->name('groups.stats');
     Route::get('/groups/{group}/stats/head-to-head', [StatsController::class, 'headToHead'])->name('groups.stats.h2h');
     Route::get('/groups/{group}/stats/partnerships', [StatsController::class, 'partnerships'])->name('groups.stats.partnerships');
